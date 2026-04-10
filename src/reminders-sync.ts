@@ -1,4 +1,4 @@
-import { Notice, TFile, Vault } from "obsidian";
+import { Notice, TFile, TFolder, Vault } from "obsidian";
 import {
   Reminder,
   fetchReminders,
@@ -25,11 +25,12 @@ const REMINDERS_SECTION_HEADER = "## Reminders";
 const REMINDER_REGEX =
   /^- \[(?<done>[ x])\]\s+(?<title>.+?)(?:\s*📅\s*(?<due>\d{4}-\d{2}-\d{2}))?(?:\s*\[rid:(?<id>[^\]]+)\])?$/;
 
-function dailyNotePath(date: Date): string {
+function dailyNotePath(date: Date, folder: string): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}.md`;
+  const name = `${y}-${m}-${d}.md`;
+  return folder ? `${folder}/${name}` : name;
 }
 
 function formatReminderLine(r: Reminder): string {
@@ -96,10 +97,30 @@ function hasReminderChanged(
   );
 }
 
+async function ensureFolder(vault: Vault, folderPath: string): Promise<void> {
+  if (!folderPath) return;
+  const parts = folderPath.split("/");
+  let current = "";
+  for (const part of parts) {
+    current = current ? `${current}/${part}` : part;
+    const existing = vault.getAbstractFileByPath(current);
+    if (!existing) {
+      await vault.createFolder(current);
+    } else if (!(existing instanceof TFolder)) {
+      return;
+    }
+  }
+}
+
 async function ensureDailyNote(vault: Vault, path: string): Promise<TFile> {
   const existing = vault.getAbstractFileByPath(path);
   if (existing instanceof TFile) return existing;
-  return await vault.create(path, `# ${path.replace(".md", "")}\n\n`);
+  const folderPath = path.substring(0, path.lastIndexOf("/"));
+  if (folderPath) {
+    await ensureFolder(vault, folderPath);
+  }
+  const title = path.replace(/^.*\//, "").replace(".md", "");
+  return await vault.create(path, `# ${title}\n\n`);
 }
 
 function parseRemindersFromNote(content: string): Array<{
@@ -203,7 +224,8 @@ export async function syncReminders(
     const state = await loadSyncState(plugin);
 
     // 2. Ensure daily note exists
-    const notePath = dailyNotePath(today);
+    const remindersFolder = plugin.settings.remindersFolder ?? "";
+    const notePath = dailyNotePath(today, remindersFolder);
     const file = await ensureDailyNote(vault, notePath);
     const noteContent = await vault.read(file);
 
@@ -229,19 +251,8 @@ export async function syncReminders(
       };
     }
 
-    // 5. Remote changes → update state
-    const mergedReminders: Reminder[] = [];
-    for (const r of appleReminders) {
-      const prev = state.reminders[r.id];
-      if (prev && hasReminderChanged(r, prev)) {
-        state.reminders[r.id] = toSyncedReminder(r);
-      } else if (!prev) {
-        state.reminders[r.id] = toSyncedReminder(r);
-      }
-      mergedReminders.push(r);
-    }
-
-    // 6. Local edits on synced reminders → push to Apple
+    // 5. Build local change map for conflict detection
+    const localChanges = new Map<string, Partial<Reminder>>();
     for (const noteR of noteReminders) {
       if (!noteR.id) continue;
       const prev = state.reminders[noteR.id];
@@ -256,21 +267,79 @@ export async function syncReminders(
         const newDue = new Date(noteR.dueStr).toISOString();
         if (newDue !== prev.dueDate) changes.dueDate = newDue;
       }
-
       if (Object.keys(changes).length > 0) {
-        await updateReminder(noteR.id, changes);
-        state.reminders[noteR.id] = {
-          ...prev,
-          ...changes,
-          lastSyncedAt: new Date().toISOString(),
-        } as SyncedReminder;
+        localChanges.set(noteR.id, changes);
       }
     }
 
-    // 7. Write merged reminders back to note
+    // 6. Merge remote changes with conflict resolution
+    const resolution = plugin.settings.conflictResolution ?? "remote-wins";
+    const mergedReminders: Reminder[] = [];
+    for (const r of appleReminders) {
+      const prev = state.reminders[r.id];
+      const remoteChanged = prev ? hasReminderChanged(r, prev) : false;
+      const localChanged = localChanges.has(r.id);
+
+      if (remoteChanged && localChanged) {
+        if (resolution === "local-wins") {
+          const changes = localChanges.get(r.id)!;
+          await updateReminder(r.id, changes);
+          state.reminders[r.id] = {
+            ...toSyncedReminder(r),
+            ...changes,
+            lastSyncedAt: new Date().toISOString(),
+          } as SyncedReminder;
+          localChanges.delete(r.id);
+        } else if (resolution === "most-recent") {
+          const localSyncTime = prev
+            ? new Date(prev.lastSyncedAt).getTime()
+            : 0;
+          const remoteTime = r.dueDate
+            ? new Date(r.dueDate).getTime()
+            : Date.now();
+          if (remoteTime > localSyncTime) {
+            state.reminders[r.id] = toSyncedReminder(r);
+            localChanges.delete(r.id);
+          } else {
+            const changes = localChanges.get(r.id)!;
+            await updateReminder(r.id, changes);
+            state.reminders[r.id] = {
+              ...toSyncedReminder(r),
+              ...changes,
+              lastSyncedAt: new Date().toISOString(),
+            } as SyncedReminder;
+            localChanges.delete(r.id);
+          }
+        } else {
+          // remote-wins (default)
+          state.reminders[r.id] = toSyncedReminder(r);
+          localChanges.delete(r.id);
+        }
+      } else if (remoteChanged) {
+        state.reminders[r.id] = toSyncedReminder(r);
+      } else if (!prev) {
+        state.reminders[r.id] = toSyncedReminder(r);
+      }
+
+      mergedReminders.push(r);
+    }
+
+    // 7. Push remaining local-only edits (no remote conflict)
+    for (const [id, changes] of localChanges) {
+      const prev = state.reminders[id];
+      if (!prev) continue;
+      await updateReminder(id, changes);
+      state.reminders[id] = {
+        ...prev,
+        ...changes,
+        lastSyncedAt: new Date().toISOString(),
+      } as SyncedReminder;
+    }
+
+    // 8. Write merged reminders back to note
     await writeRemindersToNote(vault, file, mergedReminders);
 
-    // 8. Persist sync state
+    // 9. Persist sync state
     await saveSyncState(plugin, state);
 
     new Notice(`Reminders synced: ${mergedReminders.length} items`);

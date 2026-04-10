@@ -16,8 +16,6 @@ interface ContactsSyncState {
 }
 
 const SYNC_STATE_KEY = "contacts-sync-state";
-const CONTACTS_ROOT = "People";
-
 function sanitizeFileName(name: string): string {
   return name.replace(/[\\/:*?"<>|]/g, "-").trim();
 }
@@ -30,9 +28,9 @@ function displayName(contact: Contact): string {
   return "Unknown Contact";
 }
 
-function buildVaultPath(contact: Contact): string {
+function buildVaultPath(contactsRoot: string, contact: Contact): string {
   const name = sanitizeFileName(displayName(contact));
-  return `${CONTACTS_ROOT}/${name}.md`;
+  return `${contactsRoot}/${name}.md`;
 }
 
 function formatAddress(addr: {
@@ -242,8 +240,9 @@ export async function syncContacts(
     let unchanged = 0;
 
     // 2. Process each contact
+    const contactsRoot = plugin.settings.contactsFolder || "People";
     for (const contact of appleContacts) {
-      const vaultPath = buildVaultPath(contact);
+      const vaultPath = buildVaultPath(contactsRoot, contact);
       const prev = state.contacts[contact.id];
 
       if (prev && prev.modificationDate === contact.modificationDate) {

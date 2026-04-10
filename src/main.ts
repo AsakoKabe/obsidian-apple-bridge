@@ -4,6 +4,8 @@ import { syncReminders } from "./reminders-sync";
 import { syncNotes } from "./notes-sync";
 import { syncContacts } from "./contacts-sync";
 
+type ConflictResolution = "remote-wins" | "local-wins" | "most-recent";
+
 interface AppleBridgeSettings {
   syncReminders: boolean;
   syncCalendar: boolean;
@@ -12,6 +14,11 @@ interface AppleBridgeSettings {
   syncIntervalMinutes: number;
   defaultCalendarName: string;
   defaultReminderList: string;
+  conflictResolution: ConflictResolution;
+  calendarFolder: string;
+  remindersFolder: string;
+  notesFolder: string;
+  contactsFolder: string;
 }
 
 const DEFAULT_SETTINGS: AppleBridgeSettings = {
@@ -22,6 +29,11 @@ const DEFAULT_SETTINGS: AppleBridgeSettings = {
   syncIntervalMinutes: 15,
   defaultCalendarName: "Calendar",
   defaultReminderList: "Reminders",
+  conflictResolution: "remote-wins",
+  calendarFolder: "",
+  remindersFolder: "",
+  notesFolder: "Apple Notes",
+  contactsFolder: "People",
 };
 
 export default class AppleBridgePlugin extends Plugin {
@@ -177,6 +189,86 @@ class AppleBridgeSettingTab extends PluginSettingTab {
               this.plugin.settings.syncIntervalMinutes = parsed;
               await this.plugin.saveSettings();
             }
+          })
+      );
+
+    // --- Conflict Resolution ---
+    containerEl.createEl("h3", { text: "Conflict Resolution" });
+
+    new Setting(containerEl)
+      .setName("Resolution strategy")
+      .setDesc(
+        "How to resolve conflicts when both local and remote change between syncs"
+      )
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOption("remote-wins", "Remote wins (Apple overrides local)")
+          .addOption("local-wins", "Local wins (vault overrides Apple)")
+          .addOption("most-recent", "Most recent change wins")
+          .setValue(this.plugin.settings.conflictResolution)
+          .onChange(async (value) => {
+            this.plugin.settings.conflictResolution =
+              value as ConflictResolution;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    // --- Vault Folder Mappings ---
+    containerEl.createEl("h3", { text: "Vault Folder Mappings" });
+
+    new Setting(containerEl)
+      .setName("Calendar folder")
+      .setDesc(
+        "Vault folder for daily notes with calendar events (empty = vault root)"
+      )
+      .addText((text) =>
+        text
+          .setPlaceholder("e.g. Calendar")
+          .setValue(this.plugin.settings.calendarFolder)
+          .onChange(async (value) => {
+            this.plugin.settings.calendarFolder = value.trim();
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Reminders folder")
+      .setDesc(
+        "Vault folder for daily notes with reminders (empty = vault root)"
+      )
+      .addText((text) =>
+        text
+          .setPlaceholder("e.g. Reminders")
+          .setValue(this.plugin.settings.remindersFolder)
+          .onChange(async (value) => {
+            this.plugin.settings.remindersFolder = value.trim();
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Notes folder")
+      .setDesc("Vault folder for imported Apple Notes")
+      .addText((text) =>
+        text
+          .setPlaceholder("Apple Notes")
+          .setValue(this.plugin.settings.notesFolder)
+          .onChange(async (value) => {
+            this.plugin.settings.notesFolder = value.trim() || "Apple Notes";
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Contacts folder")
+      .setDesc("Vault folder for imported Apple Contacts")
+      .addText((text) =>
+        text
+          .setPlaceholder("People")
+          .setValue(this.plugin.settings.contactsFolder)
+          .onChange(async (value) => {
+            this.plugin.settings.contactsFolder = value.trim() || "People";
+            await this.plugin.saveSettings();
           })
       );
   }

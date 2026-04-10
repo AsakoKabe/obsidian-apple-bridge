@@ -16,19 +16,21 @@ interface NotesSyncState {
 }
 
 const SYNC_STATE_KEY = "notes-sync-state";
-const NOTES_ROOT = "Apple Notes";
-
 function sanitizeFileName(name: string): string {
   return name.replace(/[\\/:*?"<>|]/g, "-").trim();
 }
 
-function buildVaultPath(folderPath: string, title: string): string {
+function buildVaultPath(
+  notesRoot: string,
+  folderPath: string,
+  title: string
+): string {
   const safeFolderPath = folderPath
     .split("/")
     .map(sanitizeFileName)
     .join("/");
   const safeTitle = sanitizeFileName(title);
-  return `${NOTES_ROOT}/${safeFolderPath}/${safeTitle}.md`;
+  return `${notesRoot}/${safeFolderPath}/${safeTitle}.md`;
 }
 
 function buildNoteFrontmatter(note: AppleNote): string {
@@ -119,8 +121,9 @@ export async function syncNotes(plugin: AppleBridgePlugin): Promise<void> {
     let unchanged = 0;
 
     // 2. Process each note
+    const notesRoot = plugin.settings.notesFolder || "Apple Notes";
     for (const note of appleNotes) {
-      const vaultPath = buildVaultPath(note.folderPath, note.title);
+      const vaultPath = buildVaultPath(notesRoot, note.folderPath, note.title);
       const prev = state.notes[note.id];
 
       if (prev && prev.modificationDate === note.modificationDate) {
