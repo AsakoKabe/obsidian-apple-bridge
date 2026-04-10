@@ -8,6 +8,7 @@ import { CreateReminderModal } from "./create-reminder-modal";
 import { OnboardingModal } from "./onboarding-modal";
 import { StatusBarWidget } from "./status-bar";
 import { createQuickReminder } from "./quick-reminder";
+import { DEFAULT_EVENT_TEMPLATE } from "./event-template";
 import {
   type ServiceKey,
   type SyncStatus,
@@ -36,6 +37,7 @@ interface AppleBridgeSettings {
   hasCompletedOnboarding: boolean;
   syncRangePastDays: number;
   syncRangeFutureDays: number;
+  eventTemplates: Record<string, string>;
 }
 
 const DEFAULT_SETTINGS: AppleBridgeSettings = {
@@ -54,6 +56,7 @@ const DEFAULT_SETTINGS: AppleBridgeSettings = {
   hasCompletedOnboarding: false,
   syncRangePastDays: 7,
   syncRangeFutureDays: 14,
+  eventTemplates: {},
 };
 
 export default class AppleBridgePlugin extends Plugin {
@@ -179,6 +182,47 @@ class AppleBridgeSettingTab extends PluginSettingTab {
     this.plugin = plugin;
   }
 
+  private renderCalendarTemplateSetting(container: HTMLElement, calName: string): void {
+    const setting = new Setting(container)
+      .setName(calName)
+      .addText((text) =>
+        text
+          .setPlaceholder("Calendar name")
+          .setValue(calName)
+          .onChange(async (newName) => {
+            const trimmed = newName.trim();
+            if (!trimmed || trimmed === calName) return;
+            const templates = { ...this.plugin.settings.eventTemplates };
+            templates[trimmed] = templates[calName] ?? "";
+            delete templates[calName];
+            this.plugin.settings.eventTemplates = templates;
+            await this.plugin.saveSettings();
+            await this.display();
+          })
+      )
+      .addTextArea((ta) =>
+        ta
+          .setPlaceholder(DEFAULT_EVENT_TEMPLATE)
+          .setValue(this.plugin.settings.eventTemplates[calName] ?? "")
+          .onChange(async (value) => {
+            const templates = { ...this.plugin.settings.eventTemplates };
+            templates[calName] = value;
+            this.plugin.settings.eventTemplates = templates;
+            await this.plugin.saveSettings();
+          })
+      )
+      .addButton((btn) =>
+        btn.setIcon("trash").onClick(async () => {
+          const templates = { ...this.plugin.settings.eventTemplates };
+          delete templates[calName];
+          this.plugin.settings.eventTemplates = templates;
+          await this.plugin.saveSettings();
+          await this.display();
+        })
+      );
+    setting.settingEl.addClass("apple-bridge-template-setting");
+  }
+
   async display(): Promise<void> {
     const { containerEl } = this;
     containerEl.empty();
@@ -247,6 +291,56 @@ class AppleBridgeSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           })
       );
+
+    // --- Event templates sub-section ---
+    const tmplHeading = calSection.createDiv({ cls: "apple-bridge-subsection-title" });
+    tmplHeading.createEl("h4", { text: "Event templates" });
+    tmplHeading.createEl("p", {
+      cls: "setting-item-description",
+      text: `Per-calendar templates control how events appear in daily notes. Use {{title}}, {{time}}, {{start}}, {{end}}, {{location}}, {{calendar}}, {{notes}}, {{url}}, {{id}}. Wrap optional parts in {{#var}}...{{/var}}.`,
+    });
+
+    const defaultTmplSetting = new Setting(calSection)
+      .setName("Default template")
+      .setDesc("Used for calendars without a specific template")
+      .addTextArea((ta) =>
+        ta
+          .setPlaceholder(DEFAULT_EVENT_TEMPLATE)
+          .setValue(this.plugin.settings.eventTemplates["*"] ?? "")
+          .onChange(async (value) => {
+            const templates = { ...this.plugin.settings.eventTemplates };
+            if (value.trim()) {
+              templates["*"] = value.trim();
+            } else {
+              delete templates["*"];
+            }
+            this.plugin.settings.eventTemplates = templates;
+            await this.plugin.saveSettings();
+          })
+      );
+    defaultTmplSetting.settingEl.addClass("apple-bridge-template-setting");
+
+    // Render existing per-calendar template entries
+    const calendarNames = Object.keys(this.plugin.settings.eventTemplates).filter(
+      (k) => k !== "*"
+    );
+    for (const calName of calendarNames) {
+      this.renderCalendarTemplateSetting(calSection, calName);
+    }
+
+    // "Add calendar template" button
+    new Setting(calSection).setName("Add calendar template").addButton((btn) =>
+      btn.setButtonText("+ Add").onClick(async () => {
+        const name = "New Calendar";
+        const templates = { ...this.plugin.settings.eventTemplates };
+        if (!templates[name]) {
+          templates[name] = "";
+          this.plugin.settings.eventTemplates = templates;
+          await this.plugin.saveSettings();
+          await this.display();
+        }
+      })
+    );
 
     appendEmptyState(calSection, statusMap.calendar, "calendar", () => {
       new CreateEventModal(this.plugin.app, this.plugin).open();

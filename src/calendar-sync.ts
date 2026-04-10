@@ -15,6 +15,7 @@ import {
   buildDateRange,
   ensureDailyNote,
 } from "./vault-utils";
+import { renderEventTemplate, DEFAULT_EVENT_TEMPLATE } from "./event-template";
 import type AppleBridgePlugin from "./main";
 
 interface SyncedEvent {
@@ -37,17 +38,16 @@ const EVENT_SECTION_HEADER = "## Calendar Events";
 const EVENT_REGEX =
   /^- \[(?<done>[ x])\] (?<time>\d{1,2}:\d{2}(?:\s*-\s*\d{1,2}:\d{2})?)?\s*(?<title>.+?)(?:\s*📍\s*(?<location>.+?))?(?:\s*\[id:(?<id>[^\]]+)\])?$/;
 
-function formatTime(iso: string): string {
-  const d = new Date(iso);
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+function resolveTemplate(
+  ev: CalendarEvent,
+  templates: Record<string, string>
+): string {
+  return templates[ev.calendarName] || templates["*"] || DEFAULT_EVENT_TEMPLATE;
 }
 
-function formatEventLine(ev: CalendarEvent): string {
-  const timeRange = ev.isAllDay
-    ? "all-day"
-    : `${formatTime(ev.startDate)} - ${formatTime(ev.endDate)}`;
-  const loc = ev.location ? ` 📍 ${ev.location}` : "";
-  return `- [ ] ${timeRange} ${ev.title}${loc} [id:${ev.id}]`;
+function formatEventLine(ev: CalendarEvent, templates: Record<string, string>): string {
+  const template = resolveTemplate(ev, templates);
+  return renderEventTemplate(template, ev);
 }
 
 function parseEventLine(
@@ -100,7 +100,8 @@ function toSyncedEvent(ev: CalendarEvent): SyncedEvent {
 async function writeEventsToNote(
   vault: Vault,
   file: TFile,
-  events: CalendarEvent[]
+  events: CalendarEvent[],
+  templates: Record<string, string>
 ): Promise<void> {
   const content = await vault.read(file);
   const lines = content.split("\n");
@@ -112,7 +113,7 @@ async function writeEventsToNote(
   const sorted = [...events].sort(
     (a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
   );
-  const eventLines = sorted.map(formatEventLine);
+  const eventLines = sorted.map((ev) => formatEventLine(ev, templates));
 
   if (sectionIdx >= 0) {
     // Find section end (next heading or EOF)
@@ -190,6 +191,7 @@ async function syncCalendarForDate(
   const calendarFolder = plugin.settings.calendarFolder ?? "";
   const defaultCalendar = plugin.settings.defaultCalendarName ?? "Calendar";
   const resolution = plugin.settings.conflictResolution ?? "remote-wins";
+  const templates = plugin.settings.eventTemplates ?? {};
   const notePath = dailyNotePath(date, calendarFolder);
 
   const file = await ensureDailyNote(vault, notePath);
@@ -312,7 +314,7 @@ async function syncCalendarForDate(
   }
 
   // Write merged events back to note
-  await writeEventsToNote(vault, file, updatedApple);
+  await writeEventsToNote(vault, file, updatedApple, templates);
 
   return updatedApple;
 }

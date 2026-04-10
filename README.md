@@ -125,6 +125,24 @@ Reminders appear under a `## Reminders` section:
 
 Select any text in your vault and run **Create Reminder from Selection** from the command palette (`Cmd+P`). The selected text becomes the reminder title, a new reminder is created in Apple Reminders with today's due date, and a `[rid:...]` line is added to your daily note.
 
+### Event templates
+
+Customize how events appear in your daily notes with per-calendar templates. Open **Settings > Apple Bridge > Calendar > Event templates** to configure.
+
+**Available variables:** `{{title}}`, `{{time}}`, `{{start}}`, `{{end}}`, `{{location}}`, `{{calendar}}`, `{{notes}}`, `{{url}}`, `{{id}}`
+
+**Conditional blocks:** `{{#location}} 📍 {{location}}{{/location}}` — only renders when the value is non-empty.
+
+**Default template:**
+```
+- [ ] {{time}} {{title}}{{#location}} 📍 {{location}}{{/location}} [id:{{id}}]
+```
+
+Set a **default template** (applies to all calendars) or add **per-calendar templates** (e.g. a "Birthdays" calendar template that omits the time):
+```
+- 🎂 {{title}}{{#notes}} — {{notes}}{{/notes}} [id:{{id}}]
+```
+
 ### Creating a calendar event
 
 Run **Create Calendar Event** from the command palette (`Cmd+P`). Fill in the title, date, start/end time, optional location, and notes — the event is created in Apple Calendar and inserted into your daily note at once.
@@ -205,8 +223,8 @@ Open **Settings → Apple Bridge**:
 ### Phase 3 — Deeper integration *(in progress)*
 - **Quick Reminder from selection** — create a reminder from selected vault text ✅
 - **Status bar live indicator** — see last sync time and module health at a glance ✅
+- **Event templates** — per-calendar note templates for imported events ✅
 - **Bidirectional Notes sync** — push Obsidian markdown edits back to Apple Notes
-- **Event templates** — per-calendar note templates for imported events
 - **Tag-based filtering** — only sync events/reminders matching specific tags or lists
 - **iCloud Calendar support** — read-only support for shared iCloud calendars
 
