@@ -111,7 +111,14 @@ function createMockPlugin(
       contactsFolder: "People",
       ...settingsOverrides,
     },
-    app: { vault },
+    app: {
+      vault,
+      fileManager: {
+        trashFile: vi.fn(async (file: TFile) => {
+          vault._files.delete(file.path);
+        }),
+      },
+    },
     loadData: vi.fn(async () => pluginData),
     saveData: vi.fn(async (d: Record<string, unknown>) => {
       pluginData = d;
@@ -269,8 +276,8 @@ describe("syncNotes", () => {
     await syncNotes(plugin as never);
 
     // Old file should be deleted
-    expect(plugin.app.vault.delete).toHaveBeenCalled();
-    const deletedFile = vi.mocked(plugin.app.vault.delete).mock.calls[0][0] as TFile;
+    expect(plugin.app.fileManager.trashFile).toHaveBeenCalled();
+    const deletedFile = vi.mocked(plugin.app.fileManager.trashFile).mock.calls[0][0] as TFile;
     expect(deletedFile.path).toBe(oldPath);
   });
 
@@ -297,8 +304,8 @@ describe("syncNotes", () => {
     const plugin = createMockPlugin({ [vaultPath]: "stale content" }, {}, prevState);
     await syncNotes(plugin as never);
 
-    expect(plugin.app.vault.delete).toHaveBeenCalled();
-    const deletedFile = vi.mocked(plugin.app.vault.delete).mock.calls[0][0] as TFile;
+    expect(plugin.app.fileManager.trashFile).toHaveBeenCalled();
+    const deletedFile = vi.mocked(plugin.app.fileManager.trashFile).mock.calls[0][0] as TFile;
     expect(deletedFile.path).toBe(vaultPath);
   });
 

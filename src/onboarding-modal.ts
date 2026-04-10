@@ -101,7 +101,7 @@ export class OnboardingModal extends Modal {
     hero.createSpan({ cls: "ob-onboard-logo", text: "\uD83C\uDF4E" });
     hero.createEl("h2", { text: "Welcome to Apple Bridge" });
     hero.createEl("p", {
-      text: "This plugin connects your Obsidian vault with Apple Calendar, Reminders, Notes, and Contacts so everything lives alongside your notes.",
+      text: "This plugin connects your Obsidian vault with Apple Calendar, reminders, notes, and contacts so everything lives alongside your notes.",
     });
     hero.createEl("p", {
       cls: "ob-onboard-subtitle",
@@ -146,29 +146,31 @@ export class OnboardingModal extends Modal {
     const testRow = contentEl.createDiv({ cls: "ob-onboard-test-row" });
     const testBtn = testRow.createEl("button", {
       cls: "mod-cta ob-onboard-test-btn",
-      text: "Test Connection",
+      text: "Test connection",
     });
     const statusEl = testRow.createDiv({ cls: "ob-onboard-test-status" });
     this.updateTestStatusEl(statusEl, this.testStates.get(step.key) ?? "idle");
 
-    testBtn.addEventListener("click", async () => {
-      this.testStates.set(step.key, "testing");
-      this.updateTestStatusEl(statusEl, "testing");
-      testBtn.disabled = true;
-      try {
-        await step.testFn();
-        this.testStates.set(step.key, "ok");
-        this.updateTestStatusEl(statusEl, "ok");
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        const kind = classifyError(msg);
-        const state: TestState =
-          kind === "permission" ? "permission" : kind === "unavailable" ? "unavailable" : "error";
-        this.testStates.set(step.key, state);
-        this.updateTestStatusEl(statusEl, state, msg);
-      } finally {
-        testBtn.disabled = false;
-      }
+    testBtn.addEventListener("click", () => {
+      void (async () => {
+        this.testStates.set(step.key, "testing");
+        this.updateTestStatusEl(statusEl, "testing");
+        testBtn.disabled = true;
+        try {
+          await step.testFn();
+          this.testStates.set(step.key, "ok");
+          this.updateTestStatusEl(statusEl, "ok");
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          const kind = classifyError(msg);
+          const state: TestState =
+            kind === "permission" ? "permission" : kind === "unavailable" ? "unavailable" : "error";
+          this.testStates.set(step.key, state);
+          this.updateTestStatusEl(statusEl, state, msg);
+        } finally {
+          testBtn.disabled = false;
+        }
+      })();
     });
 
     // Footer
@@ -202,16 +204,14 @@ export class OnboardingModal extends Modal {
       case "permission": {
         el.createSpan({ text: "\u26D4 Permission denied \u2014 " });
         const link = el.createEl("a", {
-          text: "Open System Settings",
+          text: "Open system settings",
           href: "#",
         });
         link.addEventListener("click", (e) => {
           e.preventDefault();
           // Open macOS System Settings via shell is not directly possible in Obsidian
           // best we can do is show the path to the user
-          new Notice(
-            "Go to System Settings \u2192 Privacy & Security \u2192 Automation \u2192 Obsidian"
-          );
+          new Notice("Go to system settings → privacy & security → Automation → Obsidian");
         });
         break;
       }
@@ -258,11 +258,11 @@ export class OnboardingModal extends Modal {
 
     contentEl.createEl("p", {
       cls: "ob-onboard-footer-hint",
-      text: "You can revisit these settings any time in Settings \u2192 Apple Bridge.",
+      text: "You can revisit these settings any time in settings → Apple Bridge.",
     });
 
     const actions = contentEl.createDiv({ cls: "ob-onboard-actions" });
-    const settingsBtn = actions.createEl("button", { text: "Open Settings" });
+    const settingsBtn = actions.createEl("button", { text: "Open settings" });
     settingsBtn.addEventListener("click", () => {
       this.close();
       (
@@ -272,11 +272,11 @@ export class OnboardingModal extends Modal {
 
     const syncBtn = actions.createEl("button", {
       cls: "mod-cta",
-      text: "Start Syncing",
+      text: "Start syncing",
     });
     syncBtn.addEventListener("click", () => {
       this.close();
-      this.plugin.syncAll();
+      void this.plugin.syncAll();
       new Notice("Apple Bridge sync started");
     });
   }
@@ -348,7 +348,7 @@ export class OnboardingModal extends Modal {
     const right = footer.createDiv({ cls: "ob-onboard-footer-right" });
 
     if (opts.showBack) {
-      const backBtn = right.createEl("button", { text: "\u2190 Back" });
+      const backBtn = right.createEl("button", { text: "← back" });
       backBtn.addEventListener("click", () => {
         this.step = Math.max(0, this.step - 1);
         this.render();
@@ -362,7 +362,7 @@ export class OnboardingModal extends Modal {
     nextBtn.addEventListener("click", () => {
       if (this.step > SERVICE_STEPS.length) {
         // Already on summary — finish
-        this.finishOnboarding();
+        void this.finishOnboarding();
       } else {
         this.step++;
         this.render();

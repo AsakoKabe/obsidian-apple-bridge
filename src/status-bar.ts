@@ -15,7 +15,7 @@ export class StatusBarWidget {
     this.el = plugin.addStatusBarItem();
     this.el.addClass("apple-bridge-status-bar");
     this.el.setAttribute("aria-label", "Apple Bridge — click to sync");
-    this.el.style.cursor = "pointer";
+    this.el.addClass("apple-bridge-status-bar-clickable");
     this.el.addEventListener("click", onTriggerSync);
     this.render();
   }

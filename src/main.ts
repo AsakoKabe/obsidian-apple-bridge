@@ -31,21 +31,23 @@ export default class AppleBridgePlugin extends Plugin {
   async onload() {
     await this.loadSettings();
 
-    this.statusBar = new StatusBarWidget(this, () => this.syncAll());
+    this.statusBar = new StatusBarWidget(this, () => {
+      void this.syncAll();
+    });
 
     this.addSettingTab(new AppleBridgeSettingTab(this.app, this));
 
     this.addCommand({
       id: "sync-apple-apps",
-      name: "Sync Apple Apps now",
+      name: "Sync Apple apps now",
       callback: () => {
-        this.syncAll();
+        void this.syncAll();
       },
     });
 
     this.addCommand({
       id: "create-calendar-event",
-      name: "Create Calendar Event",
+      name: "Create calendar event",
       callback: () => {
         new CreateEventModal(this.app, this).open();
       },
@@ -53,7 +55,7 @@ export default class AppleBridgePlugin extends Plugin {
 
     this.addCommand({
       id: "create-reminder",
-      name: "Create Reminder",
+      name: "Create reminder",
       callback: () => {
         new CreateReminderModal(this.app, this).open();
       },
@@ -61,23 +63,23 @@ export default class AppleBridgePlugin extends Plugin {
 
     this.addCommand({
       id: "quick-reminder-from-selection",
-      name: "Create Reminder from Selection",
+      name: "Create reminder from selection",
       editorCallback: (editor: Editor, _ctx: MarkdownView) => {
-        createQuickReminder(this, editor);
+        void createQuickReminder(this, editor);
       },
     });
 
     this.addCommand({
       id: "force-full-sync",
-      name: "Force Full Sync (ignore cache)",
+      name: "Force full sync (ignore cache)",
       callback: () => {
-        this.syncAll({ forceFullSync: true });
+        void this.syncAll({ forceFullSync: true });
       },
     });
 
     this.addCommand({
       id: "view-sync-log",
-      name: "View Sync Log",
+      name: "View sync log",
       callback: async () => {
         const entries = await loadSyncLog(() => this.loadData());
         const text = formatSyncLog(entries);
@@ -85,14 +87,19 @@ export default class AppleBridgePlugin extends Plugin {
       },
     });
 
-    const ribbonEl = this.addRibbonIcon("refresh-cw", "Sync Apple Apps", () => {
-      this.syncAll();
+    const ribbonEl = this.addRibbonIcon("refresh-cw", "Sync Apple apps", () => {
+      void this.syncAll();
     });
     ribbonEl.addClass("apple-bridge-ribbon-icon");
 
     if (this.settings.syncIntervalMinutes > 0) {
       this.registerInterval(
-        window.setInterval(() => this.syncAll(), this.settings.syncIntervalMinutes * 60 * 1000)
+        window.setInterval(
+          () => {
+            void this.syncAll();
+          },
+          this.settings.syncIntervalMinutes * 60 * 1000
+        )
       );
     }
 

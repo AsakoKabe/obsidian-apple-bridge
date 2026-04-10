@@ -205,7 +205,7 @@ export async function syncNotes(plugin: AppleBridgePlugin): Promise<number> {
             state.notes[note.id] = toSyncedNote(note, vaultPath, mdBody);
             if (prev.vaultPath !== vaultPath) {
               const oldFile = vault.getAbstractFileByPath(prev.vaultPath);
-              if (oldFile instanceof TFile) await vault.delete(oldFile);
+              if (oldFile instanceof TFile) await plugin.app.fileManager.trashFile(oldFile);
             }
             updated++;
           } else {
@@ -229,7 +229,7 @@ export async function syncNotes(plugin: AppleBridgePlugin): Promise<number> {
           state.notes[note.id] = toSyncedNote(note, vaultPath, mdBody);
           if (prev && prev.vaultPath !== vaultPath) {
             const oldFile = vault.getAbstractFileByPath(prev.vaultPath);
-            if (oldFile instanceof TFile) await vault.delete(oldFile);
+            if (oldFile instanceof TFile) await plugin.app.fileManager.trashFile(oldFile);
           }
           updated++;
         }
@@ -241,7 +241,7 @@ export async function syncNotes(plugin: AppleBridgePlugin): Promise<number> {
         if (prev) {
           if (prev.vaultPath !== vaultPath) {
             const oldFile = vault.getAbstractFileByPath(prev.vaultPath);
-            if (oldFile instanceof TFile) await vault.delete(oldFile);
+            if (oldFile instanceof TFile) await plugin.app.fileManager.trashFile(oldFile);
           }
           updated++;
         } else {
@@ -325,9 +325,9 @@ export async function syncNotes(plugin: AppleBridgePlugin): Promise<number> {
       if (!currentAppleIds.has(appleId)) {
         const file = vault.getAbstractFileByPath(synced.vaultPath);
         if (file instanceof TFile) {
-          await vault.delete(file);
+          await plugin.app.fileManager.trashFile(file);
         }
-        const { [appleId]: _removed, ...rest } = state.notes;
+        const { [appleId]: _, ...rest } = state.notes;
         state.notes = rest;
       }
     }

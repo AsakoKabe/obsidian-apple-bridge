@@ -28,7 +28,7 @@ export class AppleBridgeSettingTab extends PluginSettingTab {
             delete templates[calName];
             this.plugin.settings.eventTemplates = templates;
             await this.plugin.saveSettings();
-            await this.display();
+            await this.renderDisplay();
           })
       )
       .addTextArea((ta) =>
@@ -48,7 +48,7 @@ export class AppleBridgeSettingTab extends PluginSettingTab {
           delete templates[calName];
           this.plugin.settings.eventTemplates = templates;
           await this.plugin.saveSettings();
-          await this.display();
+          await this.renderDisplay();
         })
       );
     setting.settingEl.addClass("apple-bridge-template-setting");
@@ -80,7 +80,7 @@ export class AppleBridgeSettingTab extends PluginSettingTab {
               };
             }
             await this.plugin.saveSettings();
-            await this.display();
+            await this.renderDisplay();
           })
       );
 
@@ -90,7 +90,7 @@ export class AppleBridgeSettingTab extends PluginSettingTab {
         .setDesc("Comma-separated list of names to include or exclude")
         .addText((text) =>
           text
-            .setPlaceholder("e.g. Work, Personal")
+            .setPlaceholder("E.g. Work, personal")
             .setValue(current.names.join(", "))
             .onChange(async (value) => {
               const names = value
@@ -143,7 +143,7 @@ export class AppleBridgeSettingTab extends PluginSettingTab {
 
   private renderEventTemplatesSubsection(section: HTMLElement): void {
     const tmplHeading = section.createDiv({ cls: "apple-bridge-subsection-title" });
-    tmplHeading.createEl("h4", { text: "Event templates" });
+    new Setting(tmplHeading).setName("Event templates").setHeading();
     tmplHeading.createEl("p", {
       cls: "setting-item-description",
       text: `Per-calendar templates control how events appear in daily notes. Use {{title}}, {{time}}, {{start}}, {{end}}, {{location}}, {{calendar}}, {{notes}}, {{url}}, {{id}}. Wrap optional parts in {{#var}}...{{/var}}.`,
@@ -175,35 +175,38 @@ export class AppleBridgeSettingTab extends PluginSettingTab {
     }
 
     new Setting(section).setName("Add calendar template").addButton((btn) =>
-      btn.setButtonText("+ Add").onClick(async () => {
+      btn.setButtonText("+ add").onClick(async () => {
         const name = "New Calendar";
         const templates = { ...this.plugin.settings.eventTemplates };
         if (!templates[name]) {
           templates[name] = "";
           this.plugin.settings.eventTemplates = templates;
           await this.plugin.saveSettings();
-          await this.display();
+          await this.renderDisplay();
         }
       })
     );
   }
 
-  async display(): Promise<void> {
+  display(): void {
+    void this.renderDisplay();
+  }
+
+  private async renderDisplay(): Promise<void> {
     const { containerEl } = this;
     containerEl.empty();
     containerEl.addClass("apple-bridge-settings");
 
     const statusMap = await loadStatusMap(() => this.plugin.loadData());
     const retry = () => {
-      this.plugin.syncAll();
-      void this.display();
+      void this.plugin.syncAll();
+      void this.renderDisplay();
     };
 
     // --- Header banner ---
     const header = containerEl.createDiv({ cls: "apple-bridge-header" });
     header.createSpan({ cls: "apple-bridge-header-logo", text: "\uD83C\uDF4E" });
     const headerText = header.createDiv({ cls: "apple-bridge-header-text" });
-    headerText.createEl("h2", { text: "Apple Bridge" });
     headerText.createEl("p", {
       text: "Connect your Obsidian vault with Apple apps",
     });
@@ -242,7 +245,7 @@ export class AppleBridgeSettingTab extends PluginSettingTab {
       .setDesc("Vault folder for daily notes with calendar events (empty = vault root)")
       .addText((text) =>
         text
-          .setPlaceholder("e.g. Calendar")
+          .setPlaceholder("E.g. Calendar")
           .setValue(this.plugin.settings.calendarFolder)
           .onChange(async (value) => {
             this.plugin.settings.calendarFolder = value.trim();
@@ -290,7 +293,7 @@ export class AppleBridgeSettingTab extends PluginSettingTab {
       .setDesc("Vault folder for daily notes with reminders (empty = vault root)")
       .addText((text) =>
         text
-          .setPlaceholder("e.g. Reminders")
+          .setPlaceholder("E.g. Reminders")
           .setValue(this.plugin.settings.remindersFolder)
           .onChange(async (value) => {
             this.plugin.settings.remindersFolder = value.trim();
@@ -307,7 +310,7 @@ export class AppleBridgeSettingTab extends PluginSettingTab {
         toggle.setValue(this.plugin.settings.archiveCompletedReminders).onChange(async (value) => {
           this.plugin.settings.archiveCompletedReminders = value;
           await this.plugin.saveSettings();
-          await this.display();
+          await this.renderDisplay();
         })
       );
 
@@ -317,7 +320,7 @@ export class AppleBridgeSettingTab extends PluginSettingTab {
         .setDesc("Path to the archive note for completed reminders (relative to vault root)")
         .addText((text) =>
           text
-            .setPlaceholder("Completed Reminders.md")
+            .setPlaceholder("Completed reminders.md")
             .setValue(this.plugin.settings.archiveFilePath)
             .onChange(async (value) => {
               this.plugin.settings.archiveFilePath = value.trim() || "Completed Reminders.md";
@@ -464,7 +467,7 @@ export class AppleBridgeSettingTab extends PluginSettingTab {
     new Setting(genSection)
       .setName("Dataview metadata")
       .setDesc(
-        "Add frontmatter fields (apple_events, apple_reminders, apple_calendars, etc.) to daily notes for Dataview queries"
+        "Add frontmatter fields (Apple_events, Apple_reminders, Apple_calendars, etc.) to daily notes for Dataview queries"
       )
       .addToggle((toggle) =>
         toggle.setValue(this.plugin.settings.dataviewMetadata).onChange(async (value) => {
@@ -477,8 +480,8 @@ export class AppleBridgeSettingTab extends PluginSettingTab {
       .setName("Force full sync")
       .setDesc("Bypass incremental sync and re-process all items")
       .addButton((btn) =>
-        btn.setButtonText("Run Full Sync").onClick(() => {
-          this.plugin.syncAll({ forceFullSync: true });
+        btn.setButtonText("Run full sync").onClick(() => {
+          void this.plugin.syncAll({ forceFullSync: true });
         })
       );
 
@@ -486,7 +489,7 @@ export class AppleBridgeSettingTab extends PluginSettingTab {
       .setName("Restart setup wizard")
       .setDesc("Re-run the first-run onboarding to test permissions again")
       .addButton((btn) =>
-        btn.setButtonText("Open Wizard").onClick(() => {
+        btn.setButtonText("Open wizard").onClick(() => {
           new OnboardingModal(this.plugin.app, this.plugin).open();
         })
       );
@@ -541,10 +544,10 @@ function appendErrorBanner(container: HTMLElement, status: SyncStatus, onRetry: 
   const body = banner.createDiv({ cls: "apple-bridge-error-banner-body" });
   if (kind === "permission") {
     body.textContent =
-      "Obsidian needs Automation access. Go to System Settings \u2192 Privacy & Security \u2192 Automation \u2192 Obsidian.";
+      "Obsidian needs Automation access. Go to system settings → privacy & security → Automation → Obsidian.";
   } else if (kind === "unavailable") {
     body.textContent =
-      "Could not reach the Apple app. Make sure it is installed and Automation is enabled in System Settings.";
+      "Could not reach the Apple app. Make sure it is installed and Automation is enabled in system settings.";
   } else {
     body.textContent = status.lastError;
   }
@@ -553,10 +556,10 @@ function appendErrorBanner(container: HTMLElement, status: SyncStatus, onRetry: 
 
   if (kind === "permission") {
     const settingsBtn = actions.createEl("button", {
-      text: "Open System Settings",
+      text: "Open system settings",
     });
     settingsBtn.addEventListener("click", () => {
-      new Notice("System Settings \u2192 Privacy & Security \u2192 Automation \u2192 Obsidian");
+      new Notice("System settings → privacy & security → Automation → Obsidian");
     });
   }
 

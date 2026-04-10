@@ -33,6 +33,7 @@
     "esbuild": "^0.20.0",
     "eslint": "^9.39.4",
     "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-obsidianmd": "^0.1.9",
     "obsidian": "latest",
     "prettier": "^3.8.2",
     "tslib": "2.6.0",

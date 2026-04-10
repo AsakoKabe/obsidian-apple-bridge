@@ -72,7 +72,7 @@ export class CreateEventModal extends Modal {
     // Header with icon
     const header = contentEl.createDiv({ cls: "apple-bridge-modal-header" });
     header.createSpan({ cls: "apple-bridge-modal-icon", text: "\uD83D\uDCC5" });
-    header.createEl("h2", { text: "Create Calendar Event" });
+    header.createEl("h2", { text: "Create calendar event" });
 
     new Setting(contentEl).setName("Title").addText((text) =>
       text
@@ -85,7 +85,7 @@ export class CreateEventModal extends Modal {
 
     new Setting(contentEl).setName("Date").addText((text) =>
       text
-        .setPlaceholder("YYYY-MM-DD")
+        .setPlaceholder("Yyyy-mm-dd")
         .setValue(this.form.date)
         .onChange((value) => {
           this.form.date = value;
@@ -103,7 +103,7 @@ export class CreateEventModal extends Modal {
 
     new Setting(timeRow).setName("Start time").addText((text) =>
       text
-        .setPlaceholder("HH:MM")
+        .setPlaceholder("Hh:mm")
         .setValue(this.form.startTime)
         .onChange((value) => {
           this.form.startTime = value;
@@ -112,7 +112,7 @@ export class CreateEventModal extends Modal {
 
     new Setting(timeRow).setName("End time").addText((text) =>
       text
-        .setPlaceholder("HH:MM")
+        .setPlaceholder("Hh:mm")
         .setValue(this.form.endTime)
         .onChange((value) => {
           this.form.endTime = value;
@@ -144,7 +144,7 @@ export class CreateEventModal extends Modal {
     );
     new Setting(actions).addButton((btn) =>
       btn
-        .setButtonText("Create Event")
+        .setButtonText("Create event")
         .setCta()
         .onClick(() => this.handleCreate())
     );
@@ -163,12 +163,12 @@ export class CreateEventModal extends Modal {
     }
 
     if (!/^\d{4}-\d{2}-\d{2}$/.test(form.date)) {
-      new Notice("Date must be in YYYY-MM-DD format");
+      new Notice("Date must be in yyyy-mm-dd format");
       return;
     }
 
     if (!form.isAllDay && !/^\d{1,2}:\d{2}$/.test(form.startTime)) {
-      new Notice("Start time must be in HH:MM format");
+      new Notice("Start time must be in hh:mm format");
       return;
     }
 

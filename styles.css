@@ -4,6 +4,12 @@
    seamless light/dark theme support.
    ============================================= */
 
+/* --- Status Bar --- */
+
+.apple-bridge-status-bar-clickable {
+  cursor: pointer;
+}
+
 /* --- Settings Tab --- */
 
 .apple-bridge-settings .setting-item-heading {

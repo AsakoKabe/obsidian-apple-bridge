@@ -49,7 +49,7 @@ export class CreateReminderModal extends Modal {
     // Header with icon
     const header = contentEl.createDiv({ cls: "apple-bridge-modal-header" });
     header.createSpan({ cls: "apple-bridge-modal-icon", text: "\u2705" });
-    header.createEl("h2", { text: "Create Reminder" });
+    header.createEl("h2", { text: "Create reminder" });
 
     new Setting(contentEl).setName("Title").addText((text) =>
       text
@@ -62,7 +62,7 @@ export class CreateReminderModal extends Modal {
 
     new Setting(contentEl).setName("Due date").addText((text) =>
       text
-        .setPlaceholder("YYYY-MM-DD")
+        .setPlaceholder("Yyyy-mm-dd")
         .setValue(this.form.dueDate)
         .onChange((value) => {
           this.form.dueDate = value;
@@ -71,7 +71,7 @@ export class CreateReminderModal extends Modal {
 
     new Setting(contentEl).setName("Due time").addText((text) =>
       text
-        .setPlaceholder("HH:MM (optional)")
+        .setPlaceholder("Hh:mm (optional)")
         .setValue(this.form.dueTime)
         .onChange((value) => {
           this.form.dueTime = value;
@@ -88,7 +88,7 @@ export class CreateReminderModal extends Modal {
       this.listDropdownEl = dropdown.selectEl;
     });
 
-    this.loadReminderLists(listSetting);
+    void this.loadReminderLists(listSetting);
 
     new Setting(contentEl).setName("Priority").addDropdown((dropdown) =>
       dropdown
@@ -118,7 +118,7 @@ export class CreateReminderModal extends Modal {
     );
     new Setting(actions).addButton((btn) =>
       btn
-        .setButtonText("Create Reminder")
+        .setButtonText("Create reminder")
         .setCta()
         .onClick(() => this.handleCreate())
     );
@@ -169,12 +169,12 @@ export class CreateReminderModal extends Modal {
     }
 
     if (form.dueDate && !/^\d{4}-\d{2}-\d{2}$/.test(form.dueDate)) {
-      new Notice("Due date must be in YYYY-MM-DD format");
+      new Notice("Due date must be in yyyy-mm-dd format");
       return;
     }
 
     if (form.dueTime && !/^\d{1,2}:\d{2}$/.test(form.dueTime)) {
-      new Notice("Due time must be in HH:MM format");
+      new Notice("Due time must be in hh:mm format");
       return;
     }
 

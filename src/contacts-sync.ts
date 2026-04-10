@@ -250,7 +250,7 @@ export async function syncContacts(plugin: AppleBridgePlugin): Promise<number> {
         if (prev.vaultPath !== vaultPath) {
           const oldFile = vault.getAbstractFileByPath(prev.vaultPath);
           if (oldFile instanceof TFile) {
-            await vault.delete(oldFile);
+            await plugin.app.fileManager.trashFile(oldFile);
           }
         }
         updated++;
@@ -265,9 +265,9 @@ export async function syncContacts(plugin: AppleBridgePlugin): Promise<number> {
       if (!currentAppleIds.has(appleId)) {
         const file = vault.getAbstractFileByPath(synced.vaultPath);
         if (file instanceof TFile) {
-          await vault.delete(file);
+          await plugin.app.fileManager.trashFile(file);
         }
-        const { [appleId]: _removed, ...rest } = state.contacts;
+        const { [appleId]: _, ...rest } = state.contacts;
         state.contacts = rest;
       }
     }
