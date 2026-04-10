@@ -1,4 +1,4 @@
-import { Notice, TFile, TFolder, Vault } from "obsidian";
+import { Notice, TFile, Vault } from "obsidian";
 import { AppleNote, fetchNotes, htmlToMarkdown } from "./notes-bridge";
 import {
   checkNotesPermission,
@@ -6,6 +6,7 @@ import {
   isPermissionDenied,
   showPermissionDeniedNotice,
 } from "./permissions";
+import { ensureFolder, sanitizeFileName } from "./vault-utils";
 import type AppleBridgePlugin from "./main";
 
 interface SyncedNote {
@@ -22,9 +23,6 @@ interface NotesSyncState {
 }
 
 const SYNC_STATE_KEY = "notes-sync-state";
-function sanitizeFileName(name: string): string {
-  return name.replace(/[\\/:*?"<>|]/g, "-").trim();
-}
 
 function buildVaultPath(notesRoot: string, folderPath: string, title: string): string {
   const safeFolderPath = folderPath.split("/").map(sanitizeFileName).join("/");
@@ -65,21 +63,6 @@ function toSyncedNote(note: AppleNote, vaultPath: string): SyncedNote {
   };
 }
 
-async function ensureFolder(vault: Vault, folderPath: string): Promise<void> {
-  const parts = folderPath.split("/");
-  let current = "";
-  for (const part of parts) {
-    current = current ? `${current}/${part}` : part;
-    const existing = vault.getAbstractFileByPath(current);
-    if (!existing) {
-      await vault.createFolder(current);
-    } else if (!(existing instanceof TFolder)) {
-      // Path exists as a file, not a folder — skip
-      return;
-    }
-  }
-}
-
 async function writeNoteToVault(vault: Vault, vaultPath: string, note: AppleNote): Promise<void> {
   const folderPath = vaultPath.substring(0, vaultPath.lastIndexOf("/"));
   await ensureFolder(vault, folderPath);
@@ -96,8 +79,8 @@ async function writeNoteToVault(vault: Vault, vaultPath: string, note: AppleNote
   }
 }
 
-export async function syncNotes(plugin: AppleBridgePlugin): Promise<void> {
-  if (!plugin.settings.syncNotes) return;
+export async function syncNotes(plugin: AppleBridgePlugin): Promise<number> {
+  if (!plugin.settings.syncNotes) return 0;
 
   // Pre-flight: verify macOS has granted Notes access before doing any work.
   try {
@@ -105,7 +88,7 @@ export async function syncNotes(plugin: AppleBridgePlugin): Promise<void> {
   } catch (err: unknown) {
     if (err instanceof PermissionDeniedError) {
       showPermissionDeniedNotice(err.appName);
-      return;
+      return 0;
     }
     // Non-permission preflight failure — fall through and let the real call fail.
   }
@@ -167,11 +150,11 @@ export async function syncNotes(plugin: AppleBridgePlugin): Promise<void> {
     // 4. Persist sync state
     await saveSyncState(plugin, state);
 
-    new Notice(`Notes synced: ${imported} imported, ${updated} updated, ${unchanged} unchanged`);
+    return imported + updated + unchanged;
   } catch (err: unknown) {
     if (err instanceof PermissionDeniedError || isPermissionDenied(err)) {
       showPermissionDeniedNotice("Notes");
-      return;
+      return 0;
     }
     const msg = err instanceof Error ? err.message : "Unknown error";
     new Notice(`Notes sync failed: ${msg}`);

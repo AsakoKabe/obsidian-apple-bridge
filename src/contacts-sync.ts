@@ -1,4 +1,4 @@
-import { Notice, TFile, TFolder, Vault } from "obsidian";
+import { Notice, TFile, Vault } from "obsidian";
 import { Contact, fetchContacts } from "./contacts-bridge";
 import {
   checkContactsPermission,
@@ -6,6 +6,7 @@ import {
   isPermissionDenied,
   showPermissionDeniedNotice,
 } from "./permissions";
+import { ensureFolder, sanitizeFileName } from "./vault-utils";
 import type AppleBridgePlugin from "./main";
 
 interface SyncedContact {
@@ -22,9 +23,6 @@ interface ContactsSyncState {
 }
 
 const SYNC_STATE_KEY = "contacts-sync-state";
-function sanitizeFileName(name: string): string {
-  return name.replace(/[\\/:*?"<>|]/g, "-").trim();
-}
 
 function displayName(contact: Contact): string {
   const parts = [contact.firstName, contact.lastName].filter(Boolean);
@@ -187,20 +185,6 @@ function toSyncedContact(contact: Contact, vaultPath: string): SyncedContact {
   };
 }
 
-async function ensureFolder(vault: Vault, folderPath: string): Promise<void> {
-  const parts = folderPath.split("/");
-  let current = "";
-  for (const part of parts) {
-    current = current ? `${current}/${part}` : part;
-    const existing = vault.getAbstractFileByPath(current);
-    if (!existing) {
-      await vault.createFolder(current);
-    } else if (!(existing instanceof TFolder)) {
-      return;
-    }
-  }
-}
-
 async function writeContactToVault(
   vault: Vault,
   vaultPath: string,
@@ -221,8 +205,8 @@ async function writeContactToVault(
   }
 }
 
-export async function syncContacts(plugin: AppleBridgePlugin): Promise<void> {
-  if (!plugin.settings.syncContacts) return;
+export async function syncContacts(plugin: AppleBridgePlugin): Promise<number> {
+  if (!plugin.settings.syncContacts) return 0;
 
   // Pre-flight: verify macOS has granted Contacts access before doing any work.
   try {
@@ -230,7 +214,7 @@ export async function syncContacts(plugin: AppleBridgePlugin): Promise<void> {
   } catch (err: unknown) {
     if (err instanceof PermissionDeniedError) {
       showPermissionDeniedNotice(err.appName);
-      return;
+      return 0;
     }
     // Non-permission preflight failure — fall through and let the real call fail.
   }
@@ -291,11 +275,11 @@ export async function syncContacts(plugin: AppleBridgePlugin): Promise<void> {
     // 4. Persist sync state
     await saveSyncState(plugin, state);
 
-    new Notice(`Contacts synced: ${imported} imported, ${updated} updated, ${unchanged} unchanged`);
+    return imported + updated + unchanged;
   } catch (err: unknown) {
     if (err instanceof PermissionDeniedError || isPermissionDenied(err)) {
       showPermissionDeniedNotice("Contacts");
-      return;
+      return 0;
     }
     const msg = err instanceof Error ? err.message : "Unknown error";
     new Notice(`Contacts sync failed: ${msg}`);

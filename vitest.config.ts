@@ -13,6 +13,9 @@ export default defineConfig({
         "src/notes-sync.ts",
         "src/contacts-sync.ts",
         "src/notes-bridge.ts",
+        "src/vault-utils.ts",
+        "src/sync-status.ts",
+        "src/status-bar.ts",
       ],
       thresholds: {
         lines: 80,

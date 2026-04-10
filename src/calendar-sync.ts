@@ -1,4 +1,4 @@
-import { Notice, TFile, TFolder, Vault } from "obsidian";
+import { Notice, TFile, Vault } from "obsidian";
 import { CalendarEvent, fetchEvents, createEvent, updateEvent } from "./calendar-bridge";
 import {
   checkCalendarPermission,
@@ -6,6 +6,15 @@ import {
   isPermissionDenied,
   showPermissionDeniedNotice,
 } from "./permissions";
+import {
+  dailyNotePath,
+  toDateKey,
+  addDays,
+  startOfDay,
+  endOfDay,
+  buildDateRange,
+  ensureDailyNote,
+} from "./vault-utils";
 import type AppleBridgePlugin from "./main";
 
 interface SyncedEvent {
@@ -27,35 +36,6 @@ const SYNC_STATE_KEY = "calendar-sync-state";
 const EVENT_SECTION_HEADER = "## Calendar Events";
 const EVENT_REGEX =
   /^- \[(?<done>[ x])\] (?<time>\d{1,2}:\d{2}(?:\s*-\s*\d{1,2}:\d{2})?)?\s*(?<title>.+?)(?:\s*📍\s*(?<location>.+?))?(?:\s*\[id:(?<id>[^\]]+)\])?$/;
-
-function dailyNotePath(date: Date, folder: string): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  const name = `${y}-${m}-${d}.md`;
-  return folder ? `${folder}/${name}` : name;
-}
-
-function toDateKey(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
-function addDays(date: Date, n: number): Date {
-  const d = new Date(date);
-  d.setDate(d.getDate() + n);
-  return d;
-}
-
-function buildDateRange(today: Date, pastDays: number, futureDays: number): Date[] {
-  const dates: Date[] = [];
-  for (let offset = -pastDays; offset <= futureDays; offset++) {
-    dates.push(addDays(startOfDay(today), offset));
-  }
-  return dates;
-}
 
 function formatTime(iso: string): string {
   const d = new Date(iso);
@@ -81,18 +61,6 @@ function parseEventLine(
     timeStr: match.groups.time ?? null,
     location: match.groups.location ?? null,
   };
-}
-
-function startOfDay(date: Date): Date {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
-function endOfDay(date: Date): Date {
-  const d = new Date(date);
-  d.setHours(23, 59, 59, 999);
-  return d;
 }
 
 async function loadSyncState(plugin: AppleBridgePlugin): Promise<SyncState> {
@@ -127,32 +95,6 @@ function toSyncedEvent(ev: CalendarEvent): SyncedEvent {
     notes: ev.notes,
     lastSyncedAt: new Date().toISOString(),
   };
-}
-
-async function ensureFolder(vault: Vault, folderPath: string): Promise<void> {
-  if (!folderPath) return;
-  const parts = folderPath.split("/");
-  let current = "";
-  for (const part of parts) {
-    current = current ? `${current}/${part}` : part;
-    const existing = vault.getAbstractFileByPath(current);
-    if (!existing) {
-      await vault.createFolder(current);
-    } else if (!(existing instanceof TFolder)) {
-      return;
-    }
-  }
-}
-
-async function ensureDailyNote(vault: Vault, path: string): Promise<TFile> {
-  const existing = vault.getAbstractFileByPath(path);
-  if (existing instanceof TFile) return existing;
-  const folderPath = path.substring(0, path.lastIndexOf("/"));
-  if (folderPath) {
-    await ensureFolder(vault, folderPath);
-  }
-  const title = path.replace(/^.*\//, "").replace(".md", "");
-  return await vault.create(path, `# ${title}\n\n`);
 }
 
 async function writeEventsToNote(
@@ -375,8 +317,8 @@ async function syncCalendarForDate(
   return updatedApple;
 }
 
-export async function syncCalendar(plugin: AppleBridgePlugin): Promise<void> {
-  if (!plugin.settings.syncCalendar) return;
+export async function syncCalendar(plugin: AppleBridgePlugin): Promise<number> {
+  if (!plugin.settings.syncCalendar) return 0;
 
   // Pre-flight: verify macOS has granted Calendar access before doing any work.
   try {
@@ -384,7 +326,7 @@ export async function syncCalendar(plugin: AppleBridgePlugin): Promise<void> {
   } catch (err: unknown) {
     if (err instanceof PermissionDeniedError) {
       showPermissionDeniedNotice(err.appName);
-      return;
+      return 0;
     }
     // Non-permission preflight failure — fall through and let the real call fail.
   }
@@ -433,11 +375,11 @@ export async function syncCalendar(plugin: AppleBridgePlugin): Promise<void> {
     // Persist sync state
     await saveSyncState(plugin, state);
 
-    new Notice(`Calendar synced: ${totalEvents} events`);
+    return totalEvents;
   } catch (err: unknown) {
     if (err instanceof PermissionDeniedError || isPermissionDenied(err)) {
       showPermissionDeniedNotice("Calendar");
-      return;
+      return 0;
     }
     const msg = err instanceof Error ? err.message : "Unknown error";
     new Notice(`Calendar sync failed: ${msg}`);

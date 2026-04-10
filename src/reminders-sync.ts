@@ -1,4 +1,4 @@
-import { Notice, TFile, TFolder, Vault } from "obsidian";
+import { Notice, TFile, Vault } from "obsidian";
 import { Reminder, fetchReminders, createReminder, updateReminder } from "./reminders-bridge";
 import {
   checkRemindersPermission,
@@ -6,6 +6,12 @@ import {
   isPermissionDenied,
   showPermissionDeniedNotice,
 } from "./permissions";
+import {
+  dailyNotePath,
+  toDateKey,
+  buildDateRange,
+  ensureDailyNote,
+} from "./vault-utils";
 import type AppleBridgePlugin from "./main";
 
 interface SyncedReminder {
@@ -25,41 +31,6 @@ const SYNC_STATE_KEY = "reminders-sync-state";
 const REMINDERS_SECTION_HEADER = "## Reminders";
 const REMINDER_REGEX =
   /^- \[(?<done>[ x])\]\s+(?<title>.+?)(?:\s*📅\s*(?<due>\d{4}-\d{2}-\d{2}))?(?:\s*\[rid:(?<id>[^\]]+)\])?$/;
-
-function dailyNotePath(date: Date, folder: string): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  const name = `${y}-${m}-${d}.md`;
-  return folder ? `${folder}/${name}` : name;
-}
-
-function toDateKey(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
-function addDays(date: Date, n: number): Date {
-  const d = new Date(date);
-  d.setDate(d.getDate() + n);
-  return d;
-}
-
-function startOfDay(date: Date): Date {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
-function buildDateRange(today: Date, pastDays: number, futureDays: number): Date[] {
-  const dates: Date[] = [];
-  for (let offset = -pastDays; offset <= futureDays; offset++) {
-    dates.push(addDays(startOfDay(today), offset));
-  }
-  return dates;
-}
 
 function formatReminderLine(r: Reminder): string {
   const check = r.isCompleted ? "x" : " ";
@@ -111,32 +82,6 @@ function hasReminderChanged(remote: Reminder, synced: SyncedReminder): boolean {
     remote.dueDate !== synced.dueDate ||
     remote.notes !== synced.notes
   );
-}
-
-async function ensureFolder(vault: Vault, folderPath: string): Promise<void> {
-  if (!folderPath) return;
-  const parts = folderPath.split("/");
-  let current = "";
-  for (const part of parts) {
-    current = current ? `${current}/${part}` : part;
-    const existing = vault.getAbstractFileByPath(current);
-    if (!existing) {
-      await vault.createFolder(current);
-    } else if (!(existing instanceof TFolder)) {
-      return;
-    }
-  }
-}
-
-async function ensureDailyNote(vault: Vault, path: string): Promise<TFile> {
-  const existing = vault.getAbstractFileByPath(path);
-  if (existing instanceof TFile) return existing;
-  const folderPath = path.substring(0, path.lastIndexOf("/"));
-  if (folderPath) {
-    await ensureFolder(vault, folderPath);
-  }
-  const title = path.replace(/^.*\//, "").replace(".md", "");
-  return await vault.create(path, `# ${title}\n\n`);
 }
 
 function parseRemindersFromNote(content: string): Array<{
@@ -330,8 +275,8 @@ async function syncRemindersForDate(
   return mergedReminders;
 }
 
-export async function syncReminders(plugin: AppleBridgePlugin): Promise<void> {
-  if (!plugin.settings.syncReminders) return;
+export async function syncReminders(plugin: AppleBridgePlugin): Promise<number> {
+  if (!plugin.settings.syncReminders) return 0;
 
   // Pre-flight: verify macOS has granted Reminders access before doing any work.
   try {
@@ -339,7 +284,7 @@ export async function syncReminders(plugin: AppleBridgePlugin): Promise<void> {
   } catch (err: unknown) {
     if (err instanceof PermissionDeniedError) {
       showPermissionDeniedNotice(err.appName);
-      return;
+      return 0;
     }
     // Non-permission preflight failure — fall through and let the real call fail.
   }
@@ -389,11 +334,11 @@ export async function syncReminders(plugin: AppleBridgePlugin): Promise<void> {
     // Persist sync state
     await saveSyncState(plugin, state);
 
-    new Notice(`Reminders synced: ${totalReminders} items`);
+    return totalReminders;
   } catch (err: unknown) {
     if (err instanceof PermissionDeniedError || isPermissionDenied(err)) {
       showPermissionDeniedNotice("Reminders");
-      return;
+      return 0;
     }
     const msg = err instanceof Error ? err.message : "Unknown error";
     new Notice(`Reminders sync failed: ${msg}`);

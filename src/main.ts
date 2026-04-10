@@ -139,10 +139,10 @@ export default class AppleBridgePlugin extends Plugin {
     }
   }
 
-  private async runSync(service: ServiceKey, fn: () => Promise<number | void>): Promise<void> {
+  private async runSync(service: ServiceKey, fn: () => Promise<number>): Promise<void> {
     try {
       const count = await fn();
-      const status = makeStatusSuccess(typeof count === "number" ? count : 0);
+      const status = makeStatusSuccess(count);
       await saveServiceStatus(
         service,
         status,
