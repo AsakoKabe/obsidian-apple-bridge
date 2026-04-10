@@ -143,6 +143,18 @@ Set a **default template** (applies to all calendars) or add **per-calendar temp
 - 🎂 {{title}}{{#notes}} — {{notes}}{{/notes}} [id:{{id}}]
 ```
 
+### Calendar and Reminder list filtering
+
+Control which calendars and reminder lists are synced. Open **Settings > Apple Bridge** and configure filters for each module:
+
+| Mode | Behavior |
+|------|----------|
+| **No filter** | Sync everything (default) |
+| **Include only…** | Only sync the listed calendars/lists |
+| **Exclude…** | Sync everything except the listed calendars/lists |
+
+Enter calendar or list names as a comma-separated list (e.g. `Work, Personal`). Useful for excluding noisy calendars like "Birthdays" or "Holidays", or for focusing on a single project list.
+
 ### Creating a calendar event
 
 Run **Create Calendar Event** from the command palette (`Cmd+P`). Fill in the title, date, start/end time, optional location, and notes — the event is created in Apple Calendar and inserted into your daily note at once.
@@ -224,8 +236,8 @@ Open **Settings → Apple Bridge**:
 - **Quick Reminder from selection** — create a reminder from selected vault text ✅
 - **Status bar live indicator** — see last sync time and module health at a glance ✅
 - **Event templates** — per-calendar note templates for imported events ✅
+- **Calendar & list filtering** — include/exclude specific calendars or reminder lists ✅
 - **Bidirectional Notes sync** — push Obsidian markdown edits back to Apple Notes
-- **Tag-based filtering** — only sync events/reminders matching specific tags or lists
 - **iCloud Calendar support** — read-only support for shared iCloud calendars
 
 ---

@@ -16,6 +16,7 @@ import {
   ensureDailyNote,
 } from "./vault-utils";
 import { renderEventTemplate, DEFAULT_EVENT_TEMPLATE } from "./event-template";
+import { filterByName } from "./sync-filter";
 import type AppleBridgePlugin from "./main";
 
 interface SyncedEvent {
@@ -342,8 +343,13 @@ export async function syncCalendar(plugin: AppleBridgePlugin): Promise<number> {
   const rangeEnd = endOfDay(addDays(today, futureDays));
 
   try {
-    // Fetch all events for the entire range in one call
-    const appleEvents = await fetchEvents(rangeStart, rangeEnd);
+    // Fetch all events for the entire range, then apply calendar filter
+    const allEvents = await fetchEvents(rangeStart, rangeEnd);
+    const appleEvents = filterByName(
+      allEvents,
+      (ev) => ev.calendarName,
+      plugin.settings.calendarFilter
+    );
     const state = await loadSyncState(plugin);
 
     // Group events by date key (YYYY-MM-DD based on startDate)

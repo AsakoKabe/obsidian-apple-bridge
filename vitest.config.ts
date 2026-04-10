@@ -18,6 +18,7 @@ export default defineConfig({
         "src/status-bar.ts",
         "src/quick-reminder.ts",
         "src/event-template.ts",
+        "src/sync-filter.ts",
       ],
       thresholds: {
         lines: 80,

@@ -12,6 +12,7 @@ import {
   buildDateRange,
   ensureDailyNote,
 } from "./vault-utils";
+import { filterByName } from "./sync-filter";
 import type AppleBridgePlugin from "./main";
 
 interface SyncedReminder {
@@ -296,8 +297,13 @@ export async function syncReminders(plugin: AppleBridgePlugin): Promise<number> 
   const todayKey = toDateKey(today);
 
   try {
-    // Fetch all incomplete reminders from Apple Reminders
-    const appleReminders = await fetchReminders(undefined, false);
+    // Fetch all incomplete reminders, then apply list filter
+    const allReminders = await fetchReminders(undefined, false);
+    const appleReminders = filterByName(
+      allReminders,
+      (r) => r.listName,
+      plugin.settings.reminderListFilter
+    );
     const state = await loadSyncState(plugin);
 
     // Group reminders by due date key. Reminders with no due date or a due date

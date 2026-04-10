@@ -9,6 +9,7 @@ import { OnboardingModal } from "./onboarding-modal";
 import { StatusBarWidget } from "./status-bar";
 import { createQuickReminder } from "./quick-reminder";
 import { DEFAULT_EVENT_TEMPLATE } from "./event-template";
+import type { SyncFilter } from "./sync-filter";
 import {
   type ServiceKey,
   type SyncStatus,
@@ -38,6 +39,8 @@ interface AppleBridgeSettings {
   syncRangePastDays: number;
   syncRangeFutureDays: number;
   eventTemplates: Record<string, string>;
+  calendarFilter?: SyncFilter;
+  reminderListFilter?: SyncFilter;
 }
 
 const DEFAULT_SETTINGS: AppleBridgeSettings = {
@@ -223,6 +226,59 @@ class AppleBridgeSettingTab extends PluginSettingTab {
     setting.settingEl.addClass("apple-bridge-template-setting");
   }
 
+  private renderFilterSetting(
+    container: HTMLElement,
+    label: string,
+    filterKey: "calendarFilter" | "reminderListFilter"
+  ): void {
+    const current = this.plugin.settings[filterKey];
+
+    new Setting(container)
+      .setName(`${label} filter mode`)
+      .setDesc("Include: only sync listed names. Exclude: sync everything except listed names.")
+      .addDropdown((dd) =>
+        dd
+          .addOption("none", "No filter (sync all)")
+          .addOption("include", "Include only…")
+          .addOption("exclude", "Exclude…")
+          .setValue(current?.mode ?? "none")
+          .onChange(async (value) => {
+            if (value === "none") {
+              this.plugin.settings[filterKey] = undefined;
+            } else {
+              this.plugin.settings[filterKey] = {
+                mode: value as "include" | "exclude",
+                names: current?.names ?? [],
+              };
+            }
+            await this.plugin.saveSettings();
+            await this.display();
+          })
+      );
+
+    if (current) {
+      new Setting(container)
+        .setName(`${label} names`)
+        .setDesc("Comma-separated list of names to include or exclude")
+        .addText((text) =>
+          text
+            .setPlaceholder("e.g. Work, Personal")
+            .setValue(current.names.join(", "))
+            .onChange(async (value) => {
+              const names = value
+                .split(",")
+                .map((n) => n.trim())
+                .filter(Boolean);
+              this.plugin.settings[filterKey] = {
+                ...current,
+                names,
+              };
+              await this.plugin.saveSettings();
+            })
+        );
+    }
+  }
+
   async display(): Promise<void> {
     const { containerEl } = this;
     containerEl.empty();
@@ -291,6 +347,8 @@ class AppleBridgeSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           })
       );
+
+    this.renderFilterSetting(calSection, "Calendar", "calendarFilter");
 
     // --- Event templates sub-section ---
     const tmplHeading = calSection.createDiv({ cls: "apple-bridge-subsection-title" });
@@ -394,6 +452,8 @@ class AppleBridgeSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           })
       );
+
+    this.renderFilterSetting(remSection, "Reminder list", "reminderListFilter");
 
     appendEmptyState(remSection, statusMap.reminders, "reminders", null);
 
