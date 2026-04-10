@@ -287,9 +287,7 @@ export async function syncNotes(plugin: AppleBridgePlugin): Promise<number> {
       if (!body) continue;
 
       const folderName = extractFolder(content);
-      const title = file.path
-        .slice(file.path.lastIndexOf("/") + 1)
-        .replace(/\.md$/, "");
+      const title = file.path.slice(file.path.lastIndexOf("/") + 1).replace(/\.md$/, "");
 
       const html = markdownToHtml(body);
       const newAppleId = await createNote(folderName, title, html);

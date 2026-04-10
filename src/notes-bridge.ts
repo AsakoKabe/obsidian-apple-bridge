@@ -306,9 +306,7 @@ export function markdownToHtml(md: string): string {
       }
       const checked = checkMatch[1] === "x";
       const text = processInline(escapeHtml(checkMatch[2]));
-      htmlLines.push(
-        checked ? `<li class="checked">${text}</li>` : `<li>${text}</li>`
-      );
+      htmlLines.push(checked ? `<li class="checked">${text}</li>` : `<li>${text}</li>`);
       continue;
     }
 

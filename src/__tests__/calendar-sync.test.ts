@@ -605,7 +605,13 @@ describe("syncCalendar — read-only calendars", () => {
   it("does not push local-only events when default calendar is read-only", async () => {
     // Make default calendar read-only
     vi.mocked(listCalendars).mockResolvedValue([
-      { name: "Calendar", id: "cal-1", writable: false, accountName: "iCloud", accountType: "iCloud" },
+      {
+        name: "Calendar",
+        id: "cal-1",
+        writable: false,
+        accountName: "iCloud",
+        accountType: "iCloud",
+      },
     ]);
 
     const noteContent = [

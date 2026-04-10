@@ -372,9 +372,7 @@ export async function syncCalendar(plugin: AppleBridgePlugin): Promise<number> {
     let defaultCalendarWritable = true;
     try {
       const calendars = await listCalendars();
-      const defaultCal = calendars.find(
-        (c) => c.name === plugin.settings.defaultCalendarName
-      );
+      const defaultCal = calendars.find((c) => c.name === plugin.settings.defaultCalendarName);
       if (defaultCal) {
         defaultCalendarWritable = defaultCal.writable;
       }
@@ -406,7 +404,13 @@ export async function syncCalendar(plugin: AppleBridgePlugin): Promise<number> {
         if (!(existingFile instanceof TFile)) continue;
       }
 
-      const written = await syncCalendarForDate(plugin, date, dayEvents, state, defaultCalendarWritable);
+      const written = await syncCalendarForDate(
+        plugin,
+        date,
+        dayEvents,
+        state,
+        defaultCalendarWritable
+      );
       totalEvents += written.length;
     }
 

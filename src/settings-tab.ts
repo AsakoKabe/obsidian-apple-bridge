@@ -2,12 +2,7 @@ import { App, Notice, PluginSettingTab, Setting } from "obsidian";
 import { CreateEventModal } from "./create-event-modal";
 import { OnboardingModal } from "./onboarding-modal";
 import { DEFAULT_EVENT_TEMPLATE } from "./event-template";
-import {
-  type ServiceKey,
-  type SyncStatus,
-  loadStatusMap,
-  relativeTime,
-} from "./sync-status";
+import { type ServiceKey, type SyncStatus, loadStatusMap, relativeTime } from "./sync-status";
 import type AppleBridgePlugin from "./main";
 
 export class AppleBridgeSettingTab extends PluginSettingTab {
@@ -212,9 +207,7 @@ export class AppleBridgeSettingTab extends PluginSettingTab {
     defaultTmplSetting.settingEl.addClass("apple-bridge-template-setting");
 
     // Render existing per-calendar template entries
-    const calendarNames = Object.keys(this.plugin.settings.eventTemplates).filter(
-      (k) => k !== "*"
-    );
+    const calendarNames = Object.keys(this.plugin.settings.eventTemplates).filter((k) => k !== "*");
     for (const calName of calendarNames) {
       this.renderCalendarTemplateSetting(calSection, calName);
     }
@@ -431,7 +424,10 @@ export class AppleBridgeSettingTab extends PluginSettingTab {
           .addOption("most-recent", "Most recent change wins")
           .setValue(this.plugin.settings.conflictResolution)
           .onChange(async (value) => {
-            this.plugin.settings.conflictResolution = value as "remote-wins" | "local-wins" | "most-recent";
+            this.plugin.settings.conflictResolution = value as
+              | "remote-wins"
+              | "local-wins"
+              | "most-recent";
             await this.plugin.saveSettings();
           })
       );

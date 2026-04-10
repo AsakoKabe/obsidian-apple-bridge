@@ -434,7 +434,7 @@ describe("syncNotes — local → Apple push", () => {
     vi.mocked(fetchNotes).mockResolvedValue([]);
 
     const plugin = createMockPlugin({
-      "Other Folder/Note.md": "---\nfolder: \"Notes\"\n---\n\nsome body\n",
+      "Other Folder/Note.md": '---\nfolder: "Notes"\n---\n\nsome body\n',
     });
     await syncNotes(plugin as never);
 
