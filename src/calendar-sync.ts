@@ -1,5 +1,11 @@
 import { Notice, TFile, Vault } from "obsidian";
-import { CalendarEvent, fetchEvents, createEvent, updateEvent } from "./calendar-bridge";
+import {
+  CalendarEvent,
+  fetchEvents,
+  createEvent,
+  updateEvent,
+  listCalendars,
+} from "./calendar-bridge";
 import {
   checkCalendarPermission,
   PermissionDeniedError,
@@ -28,6 +34,7 @@ interface SyncedEvent {
   location: string;
   notes: string;
   lastSyncedAt: string;
+  calendarWritable?: boolean;
 }
 
 interface SyncState {
@@ -92,6 +99,7 @@ function toSyncedEvent(ev: CalendarEvent): SyncedEvent {
     location: ev.location,
     notes: ev.notes,
     lastSyncedAt: new Date().toISOString(),
+    calendarWritable: ev.calendarWritable,
   };
 }
 
@@ -183,7 +191,8 @@ async function syncCalendarForDate(
   plugin: AppleBridgePlugin,
   date: Date,
   dayEvents: CalendarEvent[],
-  state: SyncState
+  state: SyncState,
+  defaultCalendarWritable: boolean
 ): Promise<CalendarEvent[]> {
   const vault = plugin.app.vault;
   const calendarFolder = plugin.settings.calendarFolder ?? "";
@@ -197,9 +206,11 @@ async function syncCalendarForDate(
   const noteEvents = parseEventsFromNote(noteContent);
 
   // Push local-only events for this day to Apple Calendar
+  // Skip if the default calendar is read-only (e.g. shared iCloud calendar)
   for (const noteEv of noteEvents) {
     if (noteEv.id) continue;
     if (!noteEv.timeStr) continue;
+    if (!defaultCalendarWritable) continue;
 
     const timeParts = noteEv.timeStr.split(/\s*-\s*/);
     const start = parseTimeToDate(date, timeParts[0]);
@@ -259,8 +270,14 @@ async function syncCalendarForDate(
     const remoteChanged = prev ? hasEventChanged(ev, prev) : false;
     const localChanged = localChanges.has(ev.id);
 
+    const writable = ev.calendarWritable !== false;
+
     if (remoteChanged && localChanged) {
-      if (resolution === "local-wins") {
+      if (!writable) {
+        // Read-only calendar — remote always wins, discard local edits
+        state.events[ev.id] = toSyncedEvent(ev);
+        localChanges.delete(ev.id);
+      } else if (resolution === "local-wins") {
         const changes = localChanges.get(ev.id)!;
         await updateEvent(ev.id, changes);
         state.events[ev.id] = {
@@ -300,9 +317,11 @@ async function syncCalendarForDate(
   }
 
   // Push remaining local-only edits (no remote conflict)
+  // Skip events on read-only calendars
   for (const [id, changes] of localChanges) {
     const prev = state.events[id];
     if (!prev) continue;
+    if (prev.calendarWritable === false) continue;
     await updateEvent(id, changes);
     state.events[id] = {
       ...prev,
@@ -349,6 +368,20 @@ export async function syncCalendar(plugin: AppleBridgePlugin): Promise<number> {
     );
     const state = await loadSyncState(plugin);
 
+    // Determine if the default calendar is writable
+    let defaultCalendarWritable = true;
+    try {
+      const calendars = await listCalendars();
+      const defaultCal = calendars.find(
+        (c) => c.name === plugin.settings.defaultCalendarName
+      );
+      if (defaultCal) {
+        defaultCalendarWritable = defaultCal.writable;
+      }
+    } catch {
+      // If we can't list calendars, assume writable to preserve existing behavior
+    }
+
     // Group events by date key (YYYY-MM-DD based on startDate)
     const eventsByDate = new Map<string, CalendarEvent[]>();
     for (const ev of appleEvents) {
@@ -373,7 +406,7 @@ export async function syncCalendar(plugin: AppleBridgePlugin): Promise<number> {
         if (!(existingFile instanceof TFile)) continue;
       }
 
-      const written = await syncCalendarForDate(plugin, date, dayEvents, state);
+      const written = await syncCalendarForDate(plugin, date, dayEvents, state, defaultCalendarWritable);
       totalEvents += written.length;
     }
 

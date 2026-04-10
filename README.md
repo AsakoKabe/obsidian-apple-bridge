@@ -46,7 +46,7 @@
 |--------|-----------|------------|
 | **Calendar** | ↔ Two-way | Events ↔ daily note sections |
 | **Reminders** | ↔ Two-way | Reminders + completion status ↔ daily note sections |
-| **Notes** | → Apple → Obsidian | Apple Notes as structured `.md` files |
+| **Notes** | ↔ Two-way | Apple Notes ↔ structured `.md` files with conflict resolution |
 | **Contacts** | → Apple → Obsidian | Apple Contacts as people notes with metadata |
 
 ### Sync triggers
@@ -204,7 +204,7 @@ Open **Settings → Apple Bridge**:
 |---------|-------------|---------|
 | Sync Calendar | Enable Calendar two-way sync | On |
 | Sync Reminders | Enable Reminders two-way sync | On |
-| Sync Notes | Enable Apple Notes import | Off |
+| Sync Notes | Enable Apple Notes two-way sync | Off |
 | Sync Contacts | Enable Contacts import | Off |
 | Sync Interval | Auto-sync interval in minutes (0 = manual only) | 15 |
 | Default Calendar | Apple Calendar for new events created in Obsidian | Calendar |
@@ -232,13 +232,13 @@ Open **Settings → Apple Bridge**:
 - ESLint + Prettier code quality tooling
 - Full unit test suite (vitest)
 
-### Phase 3 — Deeper integration *(in progress)*
-- **Quick Reminder from selection** — create a reminder from selected vault text ✅
-- **Status bar live indicator** — see last sync time and module health at a glance ✅
-- **Event templates** — per-calendar note templates for imported events ✅
-- **Calendar & list filtering** — include/exclude specific calendars or reminder lists ✅
-- **Bidirectional Notes sync** — push Obsidian markdown edits back to Apple Notes
-- **iCloud Calendar support** — read-only support for shared iCloud calendars
+### Phase 3 — Deeper integration ✅
+- Quick Reminder from selection ✅
+- Status bar live indicator ✅
+- Per-calendar event templates ✅
+- Calendar & reminder list filtering ✅
+- Bidirectional Notes sync with conflict resolution ✅
+- iCloud Calendar support (read-only shared calendars) ✅
 
 ---
 

@@ -10,12 +10,17 @@ export interface CalendarEvent {
   location: string;
   notes: string;
   url: string;
+  calendarWritable: boolean;
+  accountName: string;
+  accountType: string; // "iCloud", "Exchange", "Google", "CalDAV", "Local", etc.
 }
 
 export interface CalendarInfo {
   name: string;
   id: string;
   writable: boolean;
+  accountName: string;
+  accountType: string;
 }
 
 function runJxa(script: string): Promise<string> {
@@ -39,11 +44,24 @@ export async function listCalendars(): Promise<CalendarInfo[]> {
   const script = `
     const app = Application("Calendar");
     const cals = app.calendars();
-    const result = cals.map(c => ({
-      name: c.name(),
-      id: c.uid(),
-      writable: c.writable()
-    }));
+    const result = cals.map(c => {
+      let accountName = "";
+      let accountType = "";
+      try {
+        const desc = c.description();
+        if (desc && desc.includes("type:")) {
+          const parts = desc.split("type:");
+          accountType = (parts[1] || "").trim().split(/\\s/)[0];
+        }
+      } catch (_) {}
+      return {
+        name: c.name(),
+        id: c.uid(),
+        writable: c.writable(),
+        accountName: accountName,
+        accountType: accountType
+      };
+    });
     JSON.stringify(result);
   `;
   const raw = await runJxa(script);
@@ -61,6 +79,16 @@ export async function fetchEvents(startDate: Date, endDate: Date): Promise<Calen
     const results = [];
     const cals = app.calendars();
     for (const cal of cals) {
+      const calWritable = cal.writable();
+      let accountName = "";
+      let accountType = "";
+      try {
+        const desc = cal.description();
+        if (desc && desc.includes("type:")) {
+          const parts = desc.split("type:");
+          accountType = (parts[1] || "").trim().split(/\\s/)[0];
+        }
+      } catch (_) {}
       const events = cal.events.whose({
         _and: [
           { startDate: { _greaterThan: startD } },
@@ -77,7 +105,10 @@ export async function fetchEvents(startDate: Date, endDate: Date): Promise<Calen
           isAllDay: ev.alldayEvent(),
           location: ev.location() || "",
           notes: ev.description() || "",
-          url: ev.url() || ""
+          url: ev.url() || "",
+          calendarWritable: calWritable,
+          accountName: accountName,
+          accountType: accountType
         });
       }
     }

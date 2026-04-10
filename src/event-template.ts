@@ -13,6 +13,8 @@ export interface TemplateContext {
   notes: string;
   url: string;
   id: string;
+  account: string;
+  readonly: string;
 }
 
 function formatTime(iso: string): string {
@@ -37,6 +39,8 @@ export function buildTemplateContext(event: CalendarEvent): TemplateContext {
     notes: event.notes,
     url: event.url,
     id: event.id,
+    account: event.accountName ?? "",
+    readonly: event.calendarWritable === false ? "🔒" : "",
   };
 }
 

@@ -9,7 +9,7 @@ vi.mock("../calendar-bridge", () => ({
   listCalendars: vi.fn(),
 }));
 
-import { fetchEvents, createEvent, updateEvent } from "../calendar-bridge";
+import { fetchEvents, createEvent, updateEvent, listCalendars } from "../calendar-bridge";
 import { syncCalendar } from "../calendar-sync";
 import type { CalendarEvent } from "../calendar-bridge";
 
@@ -28,6 +28,9 @@ function makeEvent(overrides: Partial<CalendarEvent> = {}): CalendarEvent {
     location: "",
     notes: "",
     url: "",
+    calendarWritable: true,
+    accountName: "",
+    accountType: "",
     ...overrides,
   };
 }
@@ -101,6 +104,9 @@ beforeEach(() => {
   vi.mocked(fetchEvents).mockResolvedValue([]);
   vi.mocked(createEvent).mockResolvedValue("new-evt-id");
   vi.mocked(updateEvent).mockResolvedValue(undefined);
+  vi.mocked(listCalendars).mockResolvedValue([
+    { name: "Calendar", id: "cal-1", writable: true, accountName: "", accountType: "" },
+  ]);
 });
 
 afterEach(() => {
@@ -571,5 +577,191 @@ describe("syncCalendar", () => {
       (call) => (call[0] as TFile).path === pastNote
     )?.[1] as string;
     expect(pastWrite).toContain("Past Meeting");
+  });
+});
+
+// ─── Read-only / iCloud calendar tests ──────────────────────────────────
+
+describe("syncCalendar — read-only calendars", () => {
+  it("reads events from read-only calendars into daily notes", async () => {
+    const event = makeEvent({
+      id: "evt-ro",
+      title: "Shared Meeting",
+      calendarName: "Shared iCloud",
+      calendarWritable: false,
+      accountName: "iCloud",
+      accountType: "iCloud",
+    });
+    vi.mocked(fetchEvents).mockResolvedValue([event]);
+
+    const plugin = createMockPlugin();
+    await syncCalendar(plugin as never);
+
+    const written = vi.mocked(plugin.app.vault.modify).mock.calls[0][1] as string;
+    expect(written).toContain("Shared Meeting");
+    expect(written).toContain("[id:evt-ro]");
+  });
+
+  it("does not push local-only events when default calendar is read-only", async () => {
+    // Make default calendar read-only
+    vi.mocked(listCalendars).mockResolvedValue([
+      { name: "Calendar", id: "cal-1", writable: false, accountName: "iCloud", accountType: "iCloud" },
+    ]);
+
+    const noteContent = [
+      `# ${FIXED_DATE}`,
+      "",
+      "## Calendar Events",
+      "",
+      "- [ ] 10:00 - 11:00 Local Event",
+      "",
+    ].join("\n");
+
+    const plugin = createMockPlugin({ [NOTE_PATH]: noteContent });
+    await syncCalendar(plugin as never);
+
+    // Should NOT attempt to create the event in Apple Calendar
+    expect(createEvent).not.toHaveBeenCalled();
+  });
+
+  it("does not update events on read-only calendars during conflict", async () => {
+    const prevState = {
+      "calendar-sync-state": {
+        events: {
+          "evt-ro": {
+            appleId: "evt-ro",
+            title: "Original Title",
+            startDate: "2026-04-10T09:00:00.000Z",
+            endDate: "2026-04-10T09:30:00.000Z",
+            isAllDay: false,
+            location: "",
+            notes: "",
+            lastSyncedAt: "2026-04-10T08:00:00.000Z",
+            calendarWritable: false,
+          },
+        },
+      },
+    };
+
+    const noteContent = [
+      `# ${FIXED_DATE}`,
+      "",
+      "## Calendar Events",
+      "",
+      "- [ ] 09:00 - 09:30 Local Edit [id:evt-ro]",
+      "",
+    ].join("\n");
+
+    // Remote also changed — a conflict
+    vi.mocked(fetchEvents).mockResolvedValue([
+      makeEvent({
+        id: "evt-ro",
+        title: "Remote Title",
+        calendarWritable: false,
+      }),
+    ]);
+
+    const plugin = createMockPlugin(
+      { [NOTE_PATH]: noteContent },
+      { conflictResolution: "local-wins" },
+      prevState
+    );
+    await syncCalendar(plugin as never);
+
+    // Even with local-wins, read-only calendar should NOT be updated
+    expect(updateEvent).not.toHaveBeenCalled();
+    // Remote version should win instead
+    const written = vi.mocked(plugin.app.vault.modify).mock.calls[0][1] as string;
+    expect(written).toContain("Remote Title");
+  });
+
+  it("does not push local edits to read-only calendars (no conflict)", async () => {
+    const prevState = {
+      "calendar-sync-state": {
+        events: {
+          "evt-ro": {
+            appleId: "evt-ro",
+            title: "Original Title",
+            startDate: "2026-04-10T09:00:00.000Z",
+            endDate: "2026-04-10T09:30:00.000Z",
+            isAllDay: false,
+            location: "",
+            notes: "",
+            lastSyncedAt: "2026-04-10T08:00:00.000Z",
+            calendarWritable: false,
+          },
+        },
+      },
+    };
+
+    const noteContent = [
+      `# ${FIXED_DATE}`,
+      "",
+      "## Calendar Events",
+      "",
+      "- [ ] 09:00 - 09:30 Locally Edited [id:evt-ro]",
+      "",
+    ].join("\n");
+
+    // No remote change (same title as original sync state)
+    vi.mocked(fetchEvents).mockResolvedValue([
+      makeEvent({
+        id: "evt-ro",
+        title: "Original Title",
+        calendarWritable: false,
+      }),
+    ]);
+
+    const plugin = createMockPlugin({ [NOTE_PATH]: noteContent }, {}, prevState);
+    await syncCalendar(plugin as never);
+
+    // Should not attempt to push the local edit to a read-only calendar
+    expect(updateEvent).not.toHaveBeenCalled();
+  });
+
+  it("still pushes local events when default calendar is writable", async () => {
+    vi.mocked(listCalendars).mockResolvedValue([
+      { name: "Calendar", id: "cal-1", writable: true, accountName: "", accountType: "" },
+    ]);
+
+    const noteContent = [
+      `# ${FIXED_DATE}`,
+      "",
+      "## Calendar Events",
+      "",
+      "- [ ] 10:00 - 11:00 Local Event",
+      "",
+    ].join("\n");
+
+    const plugin = createMockPlugin({ [NOTE_PATH]: noteContent });
+    await syncCalendar(plugin as never);
+
+    expect(createEvent).toHaveBeenCalledOnce();
+  });
+
+  it("mixes writable and read-only events in the same daily note", async () => {
+    const events = [
+      makeEvent({
+        id: "evt-rw",
+        title: "Writable Event",
+        calendarName: "Work",
+        calendarWritable: true,
+      }),
+      makeEvent({
+        id: "evt-ro",
+        title: "Shared Event",
+        calendarName: "Shared iCloud",
+        calendarWritable: false,
+        accountType: "iCloud",
+      }),
+    ];
+    vi.mocked(fetchEvents).mockResolvedValue(events);
+
+    const plugin = createMockPlugin();
+    await syncCalendar(plugin as never);
+
+    const written = vi.mocked(plugin.app.vault.modify).mock.calls[0][1] as string;
+    expect(written).toContain("Writable Event");
+    expect(written).toContain("Shared Event");
   });
 });

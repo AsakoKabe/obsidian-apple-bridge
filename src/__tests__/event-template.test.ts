@@ -33,6 +33,9 @@ function makeEvent(overrides: Partial<CalendarEvent> = {}): CalendarEvent {
     location: "Room 42",
     notes: "Weekly sync",
     url: "https://meet.example.com/standup",
+    calendarWritable: true,
+    accountName: "",
+    accountType: "",
     ...overrides,
   };
 }
@@ -214,5 +217,59 @@ describe("renderEventTemplate — edge cases", () => {
   it("handles special regex characters in event data", () => {
     const result = renderEventTemplate("{{title}}", makeEvent({ title: "Meeting (1:1) — $100" }));
     expect(result).toBe("Meeting (1:1) — $100");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Account and read-only template variables
+// ---------------------------------------------------------------------------
+
+describe("renderEventTemplate — account and readonly", () => {
+  it("includes account name in context", () => {
+    const ctx = buildTemplateContext(makeEvent({ accountName: "iCloud" }));
+    expect(ctx.account).toBe("iCloud");
+  });
+
+  it("renders {{account}} variable", () => {
+    const result = renderEventTemplate(
+      "{{title}} ({{account}})",
+      makeEvent({ accountName: "iCloud" })
+    );
+    expect(result).toBe("Team standup (iCloud)");
+  });
+
+  it("renders empty account when not set", () => {
+    const ctx = buildTemplateContext(makeEvent());
+    expect(ctx.account).toBe("");
+  });
+
+  it("shows lock icon for read-only calendar", () => {
+    const ctx = buildTemplateContext(makeEvent({ calendarWritable: false }));
+    expect(ctx.readonly).toBe("\uD83D\uDD12");
+  });
+
+  it("shows empty readonly for writable calendar", () => {
+    const ctx = buildTemplateContext(makeEvent({ calendarWritable: true }));
+    expect(ctx.readonly).toBe("");
+  });
+
+  it("renders conditional readonly block for read-only events", () => {
+    const tmpl = "{{title}}{{#readonly}} {{readonly}}{{/readonly}}";
+    const result = renderEventTemplate(tmpl, makeEvent({ calendarWritable: false }));
+    expect(result).toContain("\uD83D\uDD12");
+  });
+
+  it("omits conditional readonly block for writable events", () => {
+    const tmpl = "{{title}}{{#readonly}} {{readonly}}{{/readonly}}";
+    const result = renderEventTemplate(tmpl, makeEvent({ calendarWritable: true }));
+    expect(result).toBe("Team standup");
+  });
+
+  it("renders account in conditional block", () => {
+    const tmpl = "{{title}}{{#account}} [{{account}}]{{/account}}";
+    expect(renderEventTemplate(tmpl, makeEvent({ accountName: "Google" }))).toBe(
+      "Team standup [Google]"
+    );
+    expect(renderEventTemplate(tmpl, makeEvent({ accountName: "" }))).toBe("Team standup");
   });
 });
