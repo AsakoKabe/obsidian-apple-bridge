@@ -240,6 +240,13 @@ Open **Settings → Apple Bridge**:
 - Bidirectional Notes sync with conflict resolution ✅
 - iCloud Calendar support (read-only shared calendars) ✅
 
+### Phase 4 — Polish & ecosystem *(in progress)*
+- **Sync log** — persistent log of sync operations for troubleshooting ✅
+- **Dataview metadata** — expose sync data as frontmatter fields for Dataview queries
+- **Incremental sync** — only fetch changes since last sync for better performance
+- **Completed reminder archiving** — auto-move completed reminders to an archive note
+- **Community plugin submission** — publish to the Obsidian community plugin directory
+
 ---
 
 ## Requirements

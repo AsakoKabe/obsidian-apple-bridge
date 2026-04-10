@@ -19,6 +19,7 @@ export default defineConfig({
         "src/quick-reminder.ts",
         "src/event-template.ts",
         "src/sync-filter.ts",
+        "src/sync-log.ts",
       ],
       thresholds: {
         lines: 80,

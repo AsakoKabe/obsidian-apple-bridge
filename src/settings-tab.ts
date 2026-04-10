@@ -107,6 +107,87 @@ export class AppleBridgeSettingTab extends PluginSettingTab {
     }
   }
 
+  private renderServiceSection(
+    parent: HTMLElement,
+    opts: {
+      service: ServiceKey;
+      label: string;
+      icon: string;
+      iconClass: string;
+      toggleDesc: string;
+      enabled: boolean;
+      status: SyncStatus;
+      onToggle: (value: boolean) => Promise<void>;
+      onRetry: () => void;
+    }
+  ): HTMLElement {
+    const section = parent.createDiv({ cls: "apple-bridge-section" });
+    const title = section.createDiv({ cls: "apple-bridge-section-title" });
+    title.createSpan({
+      cls: `apple-bridge-icon apple-bridge-icon--${opts.iconClass}`,
+      text: opts.icon,
+    });
+    title.createSpan({ text: opts.label });
+    appendStatusDot(title, opts.status, opts.enabled);
+
+    appendSyncMeta(section, opts.status);
+    appendErrorBanner(section, opts.status, opts.onRetry);
+
+    new Setting(section)
+      .setName(`Sync ${opts.label}`)
+      .setDesc(opts.toggleDesc)
+      .addToggle((toggle) => toggle.setValue(opts.enabled).onChange(opts.onToggle));
+
+    return section;
+  }
+
+  private renderEventTemplatesSubsection(section: HTMLElement): void {
+    const tmplHeading = section.createDiv({ cls: "apple-bridge-subsection-title" });
+    tmplHeading.createEl("h4", { text: "Event templates" });
+    tmplHeading.createEl("p", {
+      cls: "setting-item-description",
+      text: `Per-calendar templates control how events appear in daily notes. Use {{title}}, {{time}}, {{start}}, {{end}}, {{location}}, {{calendar}}, {{notes}}, {{url}}, {{id}}. Wrap optional parts in {{#var}}...{{/var}}.`,
+    });
+
+    const defaultTmplSetting = new Setting(section)
+      .setName("Default template")
+      .setDesc("Used for calendars without a specific template")
+      .addTextArea((ta) =>
+        ta
+          .setPlaceholder(DEFAULT_EVENT_TEMPLATE)
+          .setValue(this.plugin.settings.eventTemplates["*"] ?? "")
+          .onChange(async (value) => {
+            const templates = { ...this.plugin.settings.eventTemplates };
+            if (value.trim()) {
+              templates["*"] = value.trim();
+            } else {
+              delete templates["*"];
+            }
+            this.plugin.settings.eventTemplates = templates;
+            await this.plugin.saveSettings();
+          })
+      );
+    defaultTmplSetting.settingEl.addClass("apple-bridge-template-setting");
+
+    const calendarNames = Object.keys(this.plugin.settings.eventTemplates).filter((k) => k !== "*");
+    for (const calName of calendarNames) {
+      this.renderCalendarTemplateSetting(section, calName);
+    }
+
+    new Setting(section).setName("Add calendar template").addButton((btn) =>
+      btn.setButtonText("+ Add").onClick(async () => {
+        const name = "New Calendar";
+        const templates = { ...this.plugin.settings.eventTemplates };
+        if (!templates[name]) {
+          templates[name] = "";
+          this.plugin.settings.eventTemplates = templates;
+          await this.plugin.saveSettings();
+          await this.display();
+        }
+      })
+    );
+  }
+
   async display(): Promise<void> {
     const { containerEl } = this;
     containerEl.empty();
@@ -127,28 +208,21 @@ export class AppleBridgeSettingTab extends PluginSettingTab {
       text: "Connect your Obsidian vault with Apple apps",
     });
 
-    // --- Calendar section ---
-    const calSection = containerEl.createDiv({ cls: "apple-bridge-section" });
-    const calTitle = calSection.createDiv({ cls: "apple-bridge-section-title" });
-    calTitle.createSpan({
-      cls: "apple-bridge-icon apple-bridge-icon--calendar",
-      text: "\uD83D\uDCC5",
+    // --- Service sections ---
+    const calSection = this.renderServiceSection(containerEl, {
+      service: "calendar",
+      label: "Calendar",
+      icon: "\uD83D\uDCC5",
+      iconClass: "calendar",
+      toggleDesc: "Sync Apple Calendar events to your vault",
+      enabled: this.plugin.settings.syncCalendar,
+      status: statusMap.calendar,
+      onToggle: async (value) => {
+        this.plugin.settings.syncCalendar = value;
+        await this.plugin.saveSettings();
+      },
+      onRetry: retry,
     });
-    calTitle.createSpan({ text: "Calendar" });
-    appendStatusDot(calTitle, statusMap.calendar, this.plugin.settings.syncCalendar);
-
-    appendSyncMeta(calSection, statusMap.calendar);
-    appendErrorBanner(calSection, statusMap.calendar, retry);
-
-    new Setting(calSection)
-      .setName("Sync Calendar")
-      .setDesc("Sync Apple Calendar events to your vault")
-      .addToggle((toggle) =>
-        toggle.setValue(this.plugin.settings.syncCalendar).onChange(async (value) => {
-          this.plugin.settings.syncCalendar = value;
-          await this.plugin.saveSettings();
-        })
-      );
 
     new Setting(calSection)
       .setName("Default calendar")
@@ -177,81 +251,26 @@ export class AppleBridgeSettingTab extends PluginSettingTab {
       );
 
     this.renderFilterSetting(calSection, "Calendar", "calendarFilter");
-
-    // --- Event templates sub-section ---
-    const tmplHeading = calSection.createDiv({ cls: "apple-bridge-subsection-title" });
-    tmplHeading.createEl("h4", { text: "Event templates" });
-    tmplHeading.createEl("p", {
-      cls: "setting-item-description",
-      text: `Per-calendar templates control how events appear in daily notes. Use {{title}}, {{time}}, {{start}}, {{end}}, {{location}}, {{calendar}}, {{notes}}, {{url}}, {{id}}. Wrap optional parts in {{#var}}...{{/var}}.`,
-    });
-
-    const defaultTmplSetting = new Setting(calSection)
-      .setName("Default template")
-      .setDesc("Used for calendars without a specific template")
-      .addTextArea((ta) =>
-        ta
-          .setPlaceholder(DEFAULT_EVENT_TEMPLATE)
-          .setValue(this.plugin.settings.eventTemplates["*"] ?? "")
-          .onChange(async (value) => {
-            const templates = { ...this.plugin.settings.eventTemplates };
-            if (value.trim()) {
-              templates["*"] = value.trim();
-            } else {
-              delete templates["*"];
-            }
-            this.plugin.settings.eventTemplates = templates;
-            await this.plugin.saveSettings();
-          })
-      );
-    defaultTmplSetting.settingEl.addClass("apple-bridge-template-setting");
-
-    // Render existing per-calendar template entries
-    const calendarNames = Object.keys(this.plugin.settings.eventTemplates).filter((k) => k !== "*");
-    for (const calName of calendarNames) {
-      this.renderCalendarTemplateSetting(calSection, calName);
-    }
-
-    // "Add calendar template" button
-    new Setting(calSection).setName("Add calendar template").addButton((btn) =>
-      btn.setButtonText("+ Add").onClick(async () => {
-        const name = "New Calendar";
-        const templates = { ...this.plugin.settings.eventTemplates };
-        if (!templates[name]) {
-          templates[name] = "";
-          this.plugin.settings.eventTemplates = templates;
-          await this.plugin.saveSettings();
-          await this.display();
-        }
-      })
-    );
+    this.renderEventTemplatesSubsection(calSection);
 
     appendEmptyState(calSection, statusMap.calendar, "calendar", () => {
       new CreateEventModal(this.plugin.app, this.plugin).open();
     });
 
-    // --- Reminders section ---
-    const remSection = containerEl.createDiv({ cls: "apple-bridge-section" });
-    const remTitle = remSection.createDiv({ cls: "apple-bridge-section-title" });
-    remTitle.createSpan({
-      cls: "apple-bridge-icon apple-bridge-icon--reminders",
-      text: "\u2705",
+    const remSection = this.renderServiceSection(containerEl, {
+      service: "reminders",
+      label: "Reminders",
+      icon: "\u2705",
+      iconClass: "reminders",
+      toggleDesc: "Sync Apple Reminders to your vault",
+      enabled: this.plugin.settings.syncReminders,
+      status: statusMap.reminders,
+      onToggle: async (value) => {
+        this.plugin.settings.syncReminders = value;
+        await this.plugin.saveSettings();
+      },
+      onRetry: retry,
     });
-    remTitle.createSpan({ text: "Reminders" });
-    appendStatusDot(remTitle, statusMap.reminders, this.plugin.settings.syncReminders);
-
-    appendSyncMeta(remSection, statusMap.reminders);
-    appendErrorBanner(remSection, statusMap.reminders, retry);
-
-    new Setting(remSection)
-      .setName("Sync Reminders")
-      .setDesc("Sync Apple Reminders to your vault")
-      .addToggle((toggle) =>
-        toggle.setValue(this.plugin.settings.syncReminders).onChange(async (value) => {
-          this.plugin.settings.syncReminders = value;
-          await this.plugin.saveSettings();
-        })
-      );
 
     new Setting(remSection)
       .setName("Default list")
@@ -280,31 +299,22 @@ export class AppleBridgeSettingTab extends PluginSettingTab {
       );
 
     this.renderFilterSetting(remSection, "Reminder list", "reminderListFilter");
-
     appendEmptyState(remSection, statusMap.reminders, "reminders", null);
 
-    // --- Contacts section ---
-    const conSection = containerEl.createDiv({ cls: "apple-bridge-section" });
-    const conTitle = conSection.createDiv({ cls: "apple-bridge-section-title" });
-    conTitle.createSpan({
-      cls: "apple-bridge-icon apple-bridge-icon--contacts",
-      text: "\uD83D\uDC64",
+    const conSection = this.renderServiceSection(containerEl, {
+      service: "contacts",
+      label: "Contacts",
+      icon: "\uD83D\uDC64",
+      iconClass: "contacts",
+      toggleDesc: "Import Apple Contacts as notes",
+      enabled: this.plugin.settings.syncContacts,
+      status: statusMap.contacts,
+      onToggle: async (value) => {
+        this.plugin.settings.syncContacts = value;
+        await this.plugin.saveSettings();
+      },
+      onRetry: retry,
     });
-    conTitle.createSpan({ text: "Contacts" });
-    appendStatusDot(conTitle, statusMap.contacts, this.plugin.settings.syncContacts);
-
-    appendSyncMeta(conSection, statusMap.contacts);
-    appendErrorBanner(conSection, statusMap.contacts, retry);
-
-    new Setting(conSection)
-      .setName("Sync Contacts")
-      .setDesc("Import Apple Contacts as notes")
-      .addToggle((toggle) =>
-        toggle.setValue(this.plugin.settings.syncContacts).onChange(async (value) => {
-          this.plugin.settings.syncContacts = value;
-          await this.plugin.saveSettings();
-        })
-      );
 
     new Setting(conSection)
       .setName("Vault folder")
@@ -321,28 +331,20 @@ export class AppleBridgeSettingTab extends PluginSettingTab {
 
     appendEmptyState(conSection, statusMap.contacts, "contacts", null);
 
-    // --- Notes section ---
-    const notSection = containerEl.createDiv({ cls: "apple-bridge-section" });
-    const notTitle = notSection.createDiv({ cls: "apple-bridge-section-title" });
-    notTitle.createSpan({
-      cls: "apple-bridge-icon apple-bridge-icon--notes",
-      text: "\uD83D\uDCDD",
+    const notSection = this.renderServiceSection(containerEl, {
+      service: "notes",
+      label: "Notes",
+      icon: "\uD83D\uDCDD",
+      iconClass: "notes",
+      toggleDesc: "Import Apple Notes into your vault",
+      enabled: this.plugin.settings.syncNotes,
+      status: statusMap.notes,
+      onToggle: async (value) => {
+        this.plugin.settings.syncNotes = value;
+        await this.plugin.saveSettings();
+      },
+      onRetry: retry,
     });
-    notTitle.createSpan({ text: "Notes" });
-    appendStatusDot(notTitle, statusMap.notes, this.plugin.settings.syncNotes);
-
-    appendSyncMeta(notSection, statusMap.notes);
-    appendErrorBanner(notSection, statusMap.notes, retry);
-
-    new Setting(notSection)
-      .setName("Sync Notes")
-      .setDesc("Import Apple Notes into your vault")
-      .addToggle((toggle) =>
-        toggle.setValue(this.plugin.settings.syncNotes).onChange(async (value) => {
-          this.plugin.settings.syncNotes = value;
-          await this.plugin.saveSettings();
-        })
-      );
 
     new Setting(notSection)
       .setName("Vault folder")

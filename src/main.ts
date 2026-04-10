@@ -16,6 +16,13 @@ import {
   makeStatusSuccess,
   saveServiceStatus,
 } from "./sync-status";
+import {
+  appendSyncLogEntry,
+  createSuccessEntry,
+  createErrorEntry,
+  formatSyncLog,
+  loadSyncLog,
+} from "./sync-log";
 
 export default class AppleBridgePlugin extends Plugin {
   settings: AppleBridgeSettings;
@@ -57,6 +64,16 @@ export default class AppleBridgePlugin extends Plugin {
       name: "Create Reminder from Selection",
       editorCallback: (editor: Editor, _ctx: MarkdownView) => {
         createQuickReminder(this, editor);
+      },
+    });
+
+    this.addCommand({
+      id: "view-sync-log",
+      name: "View Sync Log",
+      callback: async () => {
+        const entries = await loadSyncLog(() => this.loadData());
+        const text = formatSyncLog(entries);
+        new Notice(text.slice(0, 2000), 15000);
       },
     });
 
@@ -110,8 +127,10 @@ export default class AppleBridgePlugin extends Plugin {
   }
 
   private async runSync(service: ServiceKey, fn: () => Promise<number>): Promise<void> {
+    const start = Date.now();
     try {
       const count = await fn();
+      const durationMs = Date.now() - start;
       const status = makeStatusSuccess(count);
       await saveServiceStatus(
         service,
@@ -119,11 +138,22 @@ export default class AppleBridgePlugin extends Plugin {
         () => this.loadData(),
         (d) => this.saveData(d)
       );
+      await appendSyncLogEntry(
+        createSuccessEntry(service, count, durationMs),
+        () => this.loadData(),
+        (d) => this.saveData(d)
+      );
     } catch (err: unknown) {
+      const durationMs = Date.now() - start;
       const status = makeStatusError(err);
       await saveServiceStatus(
         service,
         status,
+        () => this.loadData(),
+        (d) => this.saveData(d)
+      );
+      await appendSyncLogEntry(
+        createErrorEntry(service, err, durationMs),
         () => this.loadData(),
         (d) => this.saveData(d)
       );
