@@ -39,6 +39,33 @@ function dailyNotePath(date: Date, folder: string): string {
   return folder ? `${folder}/${name}` : name;
 }
 
+function toDateKey(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function addDays(date: Date, n: number): Date {
+  const d = new Date(date);
+  d.setDate(d.getDate() + n);
+  return d;
+}
+
+function startOfDay(date: Date): Date {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function buildDateRange(today: Date, pastDays: number, futureDays: number): Date[] {
+  const dates: Date[] = [];
+  for (let offset = -pastDays; offset <= futureDays; offset++) {
+    dates.push(addDays(startOfDay(today), offset));
+  }
+  return dates;
+}
+
 function formatReminderLine(r: Reminder): string {
   const check = r.isCompleted ? "x" : " ";
   const due = r.dueDate
@@ -215,6 +242,127 @@ async function writeRemindersToNote(
   }
 }
 
+async function syncRemindersForDate(
+  plugin: AppleBridgePlugin,
+  date: Date,
+  dayReminders: Reminder[],
+  state: ReminderSyncState
+): Promise<Reminder[]> {
+  const vault = plugin.app.vault;
+  const remindersFolder = plugin.settings.remindersFolder ?? "";
+  const defaultList = plugin.settings.defaultReminderList ?? "Reminders";
+  const resolution = plugin.settings.conflictResolution ?? "remote-wins";
+  const notePath = dailyNotePath(date, remindersFolder);
+
+  const file = await ensureDailyNote(vault, notePath);
+  const noteContent = await vault.read(file);
+  const noteReminders = parseRemindersFromNote(noteContent);
+
+  // Push local-only reminders for this day to Apple Reminders
+  for (const noteR of noteReminders) {
+    if (noteR.id) continue;
+
+    const dueDate = noteR.dueStr ? new Date(noteR.dueStr) : undefined;
+    const newId = await createReminder(defaultList, noteR.title, { dueDate });
+
+    state.reminders[newId] = {
+      appleId: newId,
+      title: noteR.title,
+      isCompleted: noteR.isCompleted,
+      dueDate: dueDate?.toISOString() ?? null,
+      notes: "",
+      lastSyncedAt: new Date().toISOString(),
+    };
+  }
+
+  // Build local change map for conflict detection
+  const localChanges = new Map<string, Partial<Reminder>>();
+  for (const noteR of noteReminders) {
+    if (!noteR.id) continue;
+    const prev = state.reminders[noteR.id];
+    if (!prev) continue;
+
+    const changes: Partial<Reminder> = {};
+    if (noteR.title !== prev.title) changes.title = noteR.title;
+    if (noteR.isCompleted !== prev.isCompleted) {
+      changes.isCompleted = noteR.isCompleted;
+    }
+    if (noteR.dueStr) {
+      const newDue = new Date(noteR.dueStr).toISOString();
+      if (newDue !== prev.dueDate) changes.dueDate = newDue;
+    }
+    if (Object.keys(changes).length > 0) {
+      localChanges.set(noteR.id, changes);
+    }
+  }
+
+  // Merge remote changes with conflict resolution
+  const mergedReminders: Reminder[] = [];
+  for (const r of dayReminders) {
+    const prev = state.reminders[r.id];
+    const remoteChanged = prev ? hasReminderChanged(r, prev) : false;
+    const localChanged = localChanges.has(r.id);
+
+    if (remoteChanged && localChanged) {
+      if (resolution === "local-wins") {
+        const changes = localChanges.get(r.id)!;
+        await updateReminder(r.id, changes);
+        state.reminders[r.id] = {
+          ...toSyncedReminder(r),
+          ...changes,
+          lastSyncedAt: new Date().toISOString(),
+        } as SyncedReminder;
+        localChanges.delete(r.id);
+      } else if (resolution === "most-recent") {
+        const localSyncTime = prev ? new Date(prev.lastSyncedAt).getTime() : 0;
+        const remoteTime = r.dueDate
+          ? new Date(r.dueDate).getTime()
+          : Date.now();
+        if (remoteTime > localSyncTime) {
+          state.reminders[r.id] = toSyncedReminder(r);
+          localChanges.delete(r.id);
+        } else {
+          const changes = localChanges.get(r.id)!;
+          await updateReminder(r.id, changes);
+          state.reminders[r.id] = {
+            ...toSyncedReminder(r),
+            ...changes,
+            lastSyncedAt: new Date().toISOString(),
+          } as SyncedReminder;
+          localChanges.delete(r.id);
+        }
+      } else {
+        // remote-wins (default)
+        state.reminders[r.id] = toSyncedReminder(r);
+        localChanges.delete(r.id);
+      }
+    } else if (remoteChanged) {
+      state.reminders[r.id] = toSyncedReminder(r);
+    } else if (!prev) {
+      state.reminders[r.id] = toSyncedReminder(r);
+    }
+
+    mergedReminders.push(r);
+  }
+
+  // Push remaining local-only edits (no remote conflict)
+  for (const [id, changes] of localChanges) {
+    const prev = state.reminders[id];
+    if (!prev) continue;
+    await updateReminder(id, changes);
+    state.reminders[id] = {
+      ...prev,
+      ...changes,
+      lastSyncedAt: new Date().toISOString(),
+    } as SyncedReminder;
+  }
+
+  // Write merged reminders back to note
+  await writeRemindersToNote(vault, file, mergedReminders);
+
+  return mergedReminders;
+}
+
 export async function syncReminders(
   plugin: AppleBridgePlugin
 ): Promise<void> {
@@ -232,134 +380,54 @@ export async function syncReminders(
   }
 
   const today = new Date();
-  const vault = plugin.app.vault;
-  const defaultList = plugin.settings.defaultReminderList ?? "Reminders";
+  const pastDays = plugin.settings.syncRangePastDays;
+  const futureDays = plugin.settings.syncRangeFutureDays;
+  const remindersFolder = plugin.settings.remindersFolder ?? "";
+  const todayKey = toDateKey(today);
 
   try {
-    // 1. Fetch incomplete reminders from Apple Reminders
+    // Fetch all incomplete reminders from Apple Reminders
     const appleReminders = await fetchReminders(undefined, false);
     const state = await loadSyncState(plugin);
 
-    // 2. Ensure daily note exists
-    const remindersFolder = plugin.settings.remindersFolder ?? "";
-    const notePath = dailyNotePath(today, remindersFolder);
-    const file = await ensureDailyNote(vault, notePath);
-    const noteContent = await vault.read(file);
+    // Group reminders by due date key. Reminders with no due date or a due date
+    // outside the sync range are placed in today's bucket so they always appear.
+    const rangeKeys = new Set(
+      buildDateRange(today, pastDays, futureDays).map(toDateKey)
+    );
 
-    // 3. Parse reminders already in the note
-    const noteReminders = parseRemindersFromNote(noteContent);
-
-    // 4. Local-only reminders (no rid) → push to Apple Reminders
-    for (const noteR of noteReminders) {
-      if (noteR.id) continue;
-
-      const dueDate = noteR.dueStr ? new Date(noteR.dueStr) : undefined;
-      const newId = await createReminder(defaultList, noteR.title, {
-        dueDate,
-      });
-
-      state.reminders[newId] = {
-        appleId: newId,
-        title: noteR.title,
-        isCompleted: noteR.isCompleted,
-        dueDate: dueDate?.toISOString() ?? null,
-        notes: "",
-        lastSyncedAt: new Date().toISOString(),
-      };
-    }
-
-    // 5. Build local change map for conflict detection
-    const localChanges = new Map<string, Partial<Reminder>>();
-    for (const noteR of noteReminders) {
-      if (!noteR.id) continue;
-      const prev = state.reminders[noteR.id];
-      if (!prev) continue;
-
-      const changes: Partial<Reminder> = {};
-      if (noteR.title !== prev.title) changes.title = noteR.title;
-      if (noteR.isCompleted !== prev.isCompleted) {
-        changes.isCompleted = noteR.isCompleted;
-      }
-      if (noteR.dueStr) {
-        const newDue = new Date(noteR.dueStr).toISOString();
-        if (newDue !== prev.dueDate) changes.dueDate = newDue;
-      }
-      if (Object.keys(changes).length > 0) {
-        localChanges.set(noteR.id, changes);
-      }
-    }
-
-    // 6. Merge remote changes with conflict resolution
-    const resolution = plugin.settings.conflictResolution ?? "remote-wins";
-    const mergedReminders: Reminder[] = [];
+    const remindersByDate = new Map<string, Reminder[]>();
     for (const r of appleReminders) {
-      const prev = state.reminders[r.id];
-      const remoteChanged = prev ? hasReminderChanged(r, prev) : false;
-      const localChanged = localChanges.has(r.id);
+      const dueDateKey = r.dueDate ? toDateKey(new Date(r.dueDate)) : null;
+      const bucket =
+        dueDateKey && rangeKeys.has(dueDateKey) ? dueDateKey : todayKey;
+      const list = remindersByDate.get(bucket) ?? [];
+      remindersByDate.set(bucket, [...list, r]);
+    }
 
-      if (remoteChanged && localChanged) {
-        if (resolution === "local-wins") {
-          const changes = localChanges.get(r.id)!;
-          await updateReminder(r.id, changes);
-          state.reminders[r.id] = {
-            ...toSyncedReminder(r),
-            ...changes,
-            lastSyncedAt: new Date().toISOString(),
-          } as SyncedReminder;
-          localChanges.delete(r.id);
-        } else if (resolution === "most-recent") {
-          const localSyncTime = prev
-            ? new Date(prev.lastSyncedAt).getTime()
-            : 0;
-          const remoteTime = r.dueDate
-            ? new Date(r.dueDate).getTime()
-            : Date.now();
-          if (remoteTime > localSyncTime) {
-            state.reminders[r.id] = toSyncedReminder(r);
-            localChanges.delete(r.id);
-          } else {
-            const changes = localChanges.get(r.id)!;
-            await updateReminder(r.id, changes);
-            state.reminders[r.id] = {
-              ...toSyncedReminder(r),
-              ...changes,
-              lastSyncedAt: new Date().toISOString(),
-            } as SyncedReminder;
-            localChanges.delete(r.id);
-          }
-        } else {
-          // remote-wins (default)
-          state.reminders[r.id] = toSyncedReminder(r);
-          localChanges.delete(r.id);
-        }
-      } else if (remoteChanged) {
-        state.reminders[r.id] = toSyncedReminder(r);
-      } else if (!prev) {
-        state.reminders[r.id] = toSyncedReminder(r);
+    const dates = buildDateRange(today, pastDays, futureDays);
+    let totalReminders = 0;
+
+    for (const date of dates) {
+      const dateKey = toDateKey(date);
+      const dayReminders = remindersByDate.get(dateKey) ?? [];
+
+      // Always process today. For other days, only process if there are reminders
+      // due that day or an existing daily note to update.
+      if (dateKey !== todayKey && dayReminders.length === 0) {
+        const notePath = dailyNotePath(date, remindersFolder);
+        const existingFile = plugin.app.vault.getAbstractFileByPath(notePath);
+        if (!(existingFile instanceof TFile)) continue;
       }
 
-      mergedReminders.push(r);
+      const written = await syncRemindersForDate(plugin, date, dayReminders, state);
+      totalReminders += written.length;
     }
 
-    // 7. Push remaining local-only edits (no remote conflict)
-    for (const [id, changes] of localChanges) {
-      const prev = state.reminders[id];
-      if (!prev) continue;
-      await updateReminder(id, changes);
-      state.reminders[id] = {
-        ...prev,
-        ...changes,
-        lastSyncedAt: new Date().toISOString(),
-      } as SyncedReminder;
-    }
-
-    // 8. Write merged reminders back to note
-    await writeRemindersToNote(vault, file, mergedReminders);
-
-    // 9. Persist sync state
+    // Persist sync state
     await saveSyncState(plugin, state);
 
-    new Notice(`Reminders synced: ${mergedReminders.length} items`);
+    new Notice(`Reminders synced: ${totalReminders} items`);
   } catch (err: unknown) {
     if (err instanceof PermissionDeniedError || isPermissionDenied(err)) {
       showPermissionDeniedNotice("Reminders");

@@ -32,6 +32,8 @@ interface AppleBridgeSettings {
   notesFolder: string;
   contactsFolder: string;
   hasCompletedOnboarding: boolean;
+  syncRangePastDays: number;
+  syncRangeFutureDays: number;
 }
 
 const DEFAULT_SETTINGS: AppleBridgeSettings = {
@@ -48,6 +50,8 @@ const DEFAULT_SETTINGS: AppleBridgeSettings = {
   notesFolder: "Apple Notes",
   contactsFolder: "People",
   hasCompletedOnboarding: false,
+  syncRangePastDays: 7,
+  syncRangeFutureDays: 14,
 };
 
 export default class AppleBridgePlugin extends Plugin {
@@ -392,6 +396,38 @@ class AppleBridgeSettingTab extends PluginSettingTab {
             const parsed = parseInt(value, 10);
             if (!isNaN(parsed) && parsed >= 0) {
               this.plugin.settings.syncIntervalMinutes = parsed;
+              await this.plugin.saveSettings();
+            }
+          })
+      );
+
+    new Setting(genSection)
+      .setName("Sync range: past days")
+      .setDesc("How many days back to include in each sync (0 = today only)")
+      .addText((text) =>
+        text
+          .setPlaceholder("7")
+          .setValue(String(this.plugin.settings.syncRangePastDays))
+          .onChange(async (value) => {
+            const parsed = parseInt(value, 10);
+            if (!isNaN(parsed) && parsed >= 0) {
+              this.plugin.settings.syncRangePastDays = parsed;
+              await this.plugin.saveSettings();
+            }
+          })
+      );
+
+    new Setting(genSection)
+      .setName("Sync range: future days")
+      .setDesc("How many days ahead to include in each sync (0 = today only)")
+      .addText((text) =>
+        text
+          .setPlaceholder("14")
+          .setValue(String(this.plugin.settings.syncRangeFutureDays))
+          .onChange(async (value) => {
+            const parsed = parseInt(value, 10);
+            if (!isNaN(parsed) && parsed >= 0) {
+              this.plugin.settings.syncRangeFutureDays = parsed;
               await this.plugin.saveSettings();
             }
           })

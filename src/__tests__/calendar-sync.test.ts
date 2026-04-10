@@ -75,6 +75,9 @@ function createMockPlugin(
       remindersFolder: "",
       notesFolder: "Apple Notes",
       contactsFolder: "People",
+      // Default to today-only range so existing tests remain unchanged
+      syncRangePastDays: 0,
+      syncRangeFutureDays: 0,
       ...settingsOverrides,
     },
     app: { vault },
@@ -469,5 +472,93 @@ describe("syncCalendar", () => {
       `Daily/${NOTE_PATH}`,
       expect.any(String)
     );
+  });
+
+  // ---------------------------------------------------------------------------
+  // Multi-day sync range tests
+  // ---------------------------------------------------------------------------
+
+  it("fetches events for full date range when past/future days are set", async () => {
+    const plugin = createMockPlugin({}, { syncRangePastDays: 3, syncRangeFutureDays: 5 });
+    await syncCalendar(plugin as never);
+
+    const [startArg, endArg] = vi.mocked(fetchEvents).mock.calls[0];
+    // startArg should be 3 days before today
+    const expectedStart = new Date("2026-04-07T00:00:00.000");
+    const expectedEnd = new Date("2026-04-15T23:59:59.999");
+    expect(startArg.toDateString()).toBe(expectedStart.toDateString());
+    expect(endArg.toDateString()).toBe(expectedEnd.toDateString());
+  });
+
+  it("writes events to their respective daily notes across the range", async () => {
+    const todayEvent = makeEvent({
+      id: "evt-today",
+      title: "Today Meeting",
+      startDate: "2026-04-10T10:00:00.000Z",
+      endDate: "2026-04-10T11:00:00.000Z",
+    });
+    const tomorrowEvent = makeEvent({
+      id: "evt-tomorrow",
+      title: "Tomorrow Meeting",
+      startDate: "2026-04-11T10:00:00.000Z",
+      endDate: "2026-04-11T11:00:00.000Z",
+    });
+    vi.mocked(fetchEvents).mockResolvedValue([todayEvent, tomorrowEvent]);
+
+    const plugin = createMockPlugin({}, { syncRangePastDays: 0, syncRangeFutureDays: 1 });
+    await syncCalendar(plugin as never);
+
+    // Two notes should be written: today and tomorrow
+    const modifyCalls = vi.mocked(plugin.app.vault.modify).mock.calls;
+    const writtenPaths = modifyCalls.map((call) => (call[0] as TFile).path);
+    expect(writtenPaths).toContain("2026-04-10.md");
+    expect(writtenPaths).toContain("2026-04-11.md");
+
+    // Each note should only contain its own events
+    const todayWrite = modifyCalls.find((call) => (call[0] as TFile).path === "2026-04-10.md")![1] as string;
+    const tomorrowWrite = modifyCalls.find((call) => (call[0] as TFile).path === "2026-04-11.md")![1] as string;
+    expect(todayWrite).toContain("Today Meeting");
+    expect(todayWrite).not.toContain("Tomorrow Meeting");
+    expect(tomorrowWrite).toContain("Tomorrow Meeting");
+    expect(tomorrowWrite).not.toContain("Today Meeting");
+  });
+
+  it("skips creating past/future notes when no events exist for those days", async () => {
+    // Only today has events; range includes yesterday and tomorrow
+    vi.mocked(fetchEvents).mockResolvedValue([
+      makeEvent({ id: "evt-today", title: "Today Only" }),
+    ]);
+
+    const plugin = createMockPlugin({}, { syncRangePastDays: 1, syncRangeFutureDays: 1 });
+    await syncCalendar(plugin as never);
+
+    const createCalls = vi.mocked(plugin.app.vault.create).mock.calls.map((c) => c[0]);
+    // Yesterday and tomorrow notes should not be created (no events, no existing file)
+    expect(createCalls).not.toContain("2026-04-09.md");
+    expect(createCalls).not.toContain("2026-04-11.md");
+    // Today's note should be created (always processed)
+    expect(createCalls).toContain("2026-04-10.md");
+  });
+
+  it("updates an existing past daily note when it already exists", async () => {
+    const pastNote = "2026-04-09.md";
+    const existingContent = `# 2026-04-09\n\n`;
+    const pastEvent = makeEvent({
+      id: "evt-past",
+      title: "Past Meeting",
+      startDate: "2026-04-09T10:00:00.000Z",
+      endDate: "2026-04-09T11:00:00.000Z",
+    });
+    vi.mocked(fetchEvents).mockResolvedValue([pastEvent]);
+
+    const plugin = createMockPlugin(
+      { [pastNote]: existingContent },
+      { syncRangePastDays: 1, syncRangeFutureDays: 0 }
+    );
+    await syncCalendar(plugin as never);
+
+    const modifyCalls = vi.mocked(plugin.app.vault.modify).mock.calls;
+    const pastWrite = modifyCalls.find((call) => (call[0] as TFile).path === pastNote)?.[1] as string;
+    expect(pastWrite).toContain("Past Meeting");
   });
 });

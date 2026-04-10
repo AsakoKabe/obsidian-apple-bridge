@@ -41,6 +41,27 @@ function dailyNotePath(date: Date, folder: string): string {
   return folder ? `${folder}/${name}` : name;
 }
 
+function toDateKey(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function addDays(date: Date, n: number): Date {
+  const d = new Date(date);
+  d.setDate(d.getDate() + n);
+  return d;
+}
+
+function buildDateRange(today: Date, pastDays: number, futureDays: number): Date[] {
+  const dates: Date[] = [];
+  for (let offset = -pastDays; offset <= futureDays; offset++) {
+    dates.push(addDays(startOfDay(today), offset));
+  }
+  return dates;
+}
+
 function formatTime(iso: string): string {
   const d = new Date(iso);
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
@@ -238,6 +259,143 @@ function parseTimeToDate(date: Date, timeStr: string): Date {
   return d;
 }
 
+async function syncCalendarForDate(
+  plugin: AppleBridgePlugin,
+  date: Date,
+  dayEvents: CalendarEvent[],
+  state: SyncState
+): Promise<CalendarEvent[]> {
+  const vault = plugin.app.vault;
+  const calendarFolder = plugin.settings.calendarFolder ?? "";
+  const defaultCalendar = plugin.settings.defaultCalendarName ?? "Calendar";
+  const resolution = plugin.settings.conflictResolution ?? "remote-wins";
+  const notePath = dailyNotePath(date, calendarFolder);
+
+  const file = await ensureDailyNote(vault, notePath);
+  const noteContent = await vault.read(file);
+  const noteEvents = parseEventsFromNote(noteContent);
+
+  // Push local-only events for this day to Apple Calendar
+  for (const noteEv of noteEvents) {
+    if (noteEv.id) continue;
+    if (!noteEv.timeStr) continue;
+
+    const timeParts = noteEv.timeStr.split(/\s*-\s*/);
+    const start = parseTimeToDate(date, timeParts[0]);
+    const end = timeParts[1]
+      ? parseTimeToDate(date, timeParts[1])
+      : new Date(start.getTime() + 60 * 60 * 1000);
+
+    const newId = await createEvent(defaultCalendar, noteEv.title, start, end, {
+      location: noteEv.location ?? undefined,
+    });
+    state.events[newId] = {
+      appleId: newId,
+      title: noteEv.title,
+      startDate: start.toISOString(),
+      endDate: end.toISOString(),
+      isAllDay: false,
+      location: noteEv.location ?? "",
+      notes: "",
+      lastSyncedAt: new Date().toISOString(),
+    };
+  }
+
+  // Build local change map for conflict detection
+  const localChanges = new Map<string, Partial<CalendarEvent>>();
+  for (const noteEv of noteEvents) {
+    if (!noteEv.id) continue;
+    const prev = state.events[noteEv.id];
+    if (!prev) continue;
+
+    const changes: Partial<CalendarEvent> = {};
+    if (noteEv.title !== prev.title) changes.title = noteEv.title;
+    if (noteEv.location && noteEv.location !== prev.location) {
+      changes.location = noteEv.location;
+    }
+    if (noteEv.timeStr) {
+      const timeParts = noteEv.timeStr.split(/\s*-\s*/);
+      const start = parseTimeToDate(date, timeParts[0]);
+      if (start.toISOString() !== prev.startDate) {
+        changes.startDate = start.toISOString();
+      }
+      if (timeParts[1]) {
+        const end = parseTimeToDate(date, timeParts[1]);
+        if (end.toISOString() !== prev.endDate) {
+          changes.endDate = end.toISOString();
+        }
+      }
+    }
+    if (Object.keys(changes).length > 0) {
+      localChanges.set(noteEv.id, changes);
+    }
+  }
+
+  // Merge remote changes with conflict resolution
+  const updatedApple: CalendarEvent[] = [];
+  for (const ev of dayEvents) {
+    const prev = state.events[ev.id];
+    const remoteChanged = prev ? hasEventChanged(ev, prev) : false;
+    const localChanged = localChanges.has(ev.id);
+
+    if (remoteChanged && localChanged) {
+      if (resolution === "local-wins") {
+        const changes = localChanges.get(ev.id)!;
+        await updateEvent(ev.id, changes);
+        state.events[ev.id] = {
+          ...toSyncedEvent(ev),
+          ...changes,
+          lastSyncedAt: new Date().toISOString(),
+        } as SyncedEvent;
+        localChanges.delete(ev.id);
+      } else if (resolution === "most-recent") {
+        const remoteTime = new Date(ev.startDate).getTime();
+        const localSyncTime = prev ? new Date(prev.lastSyncedAt).getTime() : 0;
+        if (remoteTime > localSyncTime) {
+          state.events[ev.id] = toSyncedEvent(ev);
+          localChanges.delete(ev.id);
+        } else {
+          const changes = localChanges.get(ev.id)!;
+          await updateEvent(ev.id, changes);
+          state.events[ev.id] = {
+            ...toSyncedEvent(ev),
+            ...changes,
+            lastSyncedAt: new Date().toISOString(),
+          } as SyncedEvent;
+          localChanges.delete(ev.id);
+        }
+      } else {
+        // remote-wins (default)
+        state.events[ev.id] = toSyncedEvent(ev);
+        localChanges.delete(ev.id);
+      }
+    } else if (remoteChanged) {
+      state.events[ev.id] = toSyncedEvent(ev);
+    } else if (!prev) {
+      state.events[ev.id] = toSyncedEvent(ev);
+    }
+
+    updatedApple.push(ev);
+  }
+
+  // Push remaining local-only edits (no remote conflict)
+  for (const [id, changes] of localChanges) {
+    const prev = state.events[id];
+    if (!prev) continue;
+    await updateEvent(id, changes);
+    state.events[id] = {
+      ...prev,
+      ...changes,
+      lastSyncedAt: new Date().toISOString(),
+    } as SyncedEvent;
+  }
+
+  // Write merged events back to note
+  await writeEventsToNote(vault, file, updatedApple);
+
+  return updatedApple;
+}
+
 export async function syncCalendar(plugin: AppleBridgePlugin): Promise<void> {
   if (!plugin.settings.syncCalendar) return;
 
@@ -253,151 +411,50 @@ export async function syncCalendar(plugin: AppleBridgePlugin): Promise<void> {
   }
 
   const today = new Date();
-  const vault = plugin.app.vault;
+  const pastDays = plugin.settings.syncRangePastDays;
+  const futureDays = plugin.settings.syncRangeFutureDays;
+  const calendarFolder = plugin.settings.calendarFolder ?? "";
+
+  const rangeStart = startOfDay(addDays(today, -pastDays));
+  const rangeEnd = endOfDay(addDays(today, futureDays));
 
   try {
-    // 1. Fetch events from Apple Calendar for today
-    const appleEvents = await fetchEvents(startOfDay(today), endOfDay(today));
+    // Fetch all events for the entire range in one call
+    const appleEvents = await fetchEvents(rangeStart, rangeEnd);
     const state = await loadSyncState(plugin);
 
-    // 2. Ensure daily note exists
-    const calendarFolder = plugin.settings.calendarFolder ?? "";
-    const notePath = dailyNotePath(today, calendarFolder);
-    const file = await ensureDailyNote(vault, notePath);
-    const noteContent = await vault.read(file);
-
-    // 3. Parse events already in the note
-    const noteEvents = parseEventsFromNote(noteContent);
-
-    // 4. Detect local-only events (no apple id) → push to Apple Calendar
-    const defaultCalendar = plugin.settings.defaultCalendarName ?? "Calendar";
-    for (const noteEv of noteEvents) {
-      if (noteEv.id) continue; // already synced
-      if (!noteEv.timeStr) continue; // can't create without time
-
-      const timeParts = noteEv.timeStr.split(/\s*-\s*/);
-      const start = parseTimeToDate(today, timeParts[0]);
-      const end = timeParts[1]
-        ? parseTimeToDate(today, timeParts[1])
-        : new Date(start.getTime() + 60 * 60 * 1000); // default 1h
-
-      const newId = await createEvent(defaultCalendar, noteEv.title, start, end, {
-        location: noteEv.location ?? undefined,
-      });
-      state.events[newId] = {
-        appleId: newId,
-        title: noteEv.title,
-        startDate: start.toISOString(),
-        endDate: end.toISOString(),
-        isAllDay: false,
-        location: noteEv.location ?? "",
-        notes: "",
-        lastSyncedAt: new Date().toISOString(),
-      };
-    }
-
-    // 5. Build local change map for conflict detection
-    const localChanges = new Map<string, Partial<CalendarEvent>>();
-    for (const noteEv of noteEvents) {
-      if (!noteEv.id) continue;
-      const prev = state.events[noteEv.id];
-      if (!prev) continue;
-
-      const changes: Partial<CalendarEvent> = {};
-      if (noteEv.title !== prev.title) changes.title = noteEv.title;
-      if (noteEv.location && noteEv.location !== prev.location) {
-        changes.location = noteEv.location;
-      }
-      if (noteEv.timeStr) {
-        const timeParts = noteEv.timeStr.split(/\s*-\s*/);
-        const start = parseTimeToDate(today, timeParts[0]);
-        if (start.toISOString() !== prev.startDate) {
-          changes.startDate = start.toISOString();
-        }
-        if (timeParts[1]) {
-          const end = parseTimeToDate(today, timeParts[1]);
-          if (end.toISOString() !== prev.endDate) {
-            changes.endDate = end.toISOString();
-          }
-        }
-      }
-      if (Object.keys(changes).length > 0) {
-        localChanges.set(noteEv.id, changes);
-      }
-    }
-
-    // 6. Merge remote changes with conflict resolution
-    const resolution = plugin.settings.conflictResolution ?? "remote-wins";
-    const updatedApple: CalendarEvent[] = [];
+    // Group events by date key (YYYY-MM-DD based on startDate)
+    const eventsByDate = new Map<string, CalendarEvent[]>();
     for (const ev of appleEvents) {
-      const prev = state.events[ev.id];
-      const remoteChanged = prev ? hasEventChanged(ev, prev) : false;
-      const localChanged = localChanges.has(ev.id);
+      const key = toDateKey(new Date(ev.startDate));
+      const list = eventsByDate.get(key) ?? [];
+      eventsByDate.set(key, [...list, ev]);
+    }
 
-      if (remoteChanged && localChanged) {
-        // True conflict — apply resolution strategy
-        if (resolution === "local-wins") {
-          // Push local to Apple, keep local version
-          const changes = localChanges.get(ev.id)!;
-          await updateEvent(ev.id, changes);
-          state.events[ev.id] = {
-            ...toSyncedEvent(ev),
-            ...changes,
-            lastSyncedAt: new Date().toISOString(),
-          } as SyncedEvent;
-          localChanges.delete(ev.id);
-        } else if (resolution === "most-recent") {
-          // Compare timestamps — remote modDate vs local sync time
-          const remoteTime = new Date(ev.startDate).getTime();
-          const localSyncTime = prev
-            ? new Date(prev.lastSyncedAt).getTime()
-            : 0;
-          if (remoteTime > localSyncTime) {
-            state.events[ev.id] = toSyncedEvent(ev);
-            localChanges.delete(ev.id);
-          } else {
-            const changes = localChanges.get(ev.id)!;
-            await updateEvent(ev.id, changes);
-            state.events[ev.id] = {
-              ...toSyncedEvent(ev),
-              ...changes,
-              lastSyncedAt: new Date().toISOString(),
-            } as SyncedEvent;
-            localChanges.delete(ev.id);
-          }
-        } else {
-          // remote-wins (default)
-          state.events[ev.id] = toSyncedEvent(ev);
-          localChanges.delete(ev.id);
-        }
-      } else if (remoteChanged) {
-        state.events[ev.id] = toSyncedEvent(ev);
-      } else if (!prev) {
-        state.events[ev.id] = toSyncedEvent(ev);
+    const dates = buildDateRange(today, pastDays, futureDays);
+    const todayKey = toDateKey(today);
+    let totalEvents = 0;
+
+    for (const date of dates) {
+      const dateKey = toDateKey(date);
+      const dayEvents = eventsByDate.get(dateKey) ?? [];
+
+      // Always process today. For other days, only process if there are Apple
+      // events for that day or an existing daily note to update.
+      if (dateKey !== todayKey && dayEvents.length === 0) {
+        const notePath = dailyNotePath(date, calendarFolder);
+        const existingFile = plugin.app.vault.getAbstractFileByPath(notePath);
+        if (!(existingFile instanceof TFile)) continue;
       }
 
-      updatedApple.push(ev);
+      const written = await syncCalendarForDate(plugin, date, dayEvents, state);
+      totalEvents += written.length;
     }
 
-    // 7. Push remaining local-only edits (no remote conflict)
-    for (const [id, changes] of localChanges) {
-      const prev = state.events[id];
-      if (!prev) continue;
-      await updateEvent(id, changes);
-      state.events[id] = {
-        ...prev,
-        ...changes,
-        lastSyncedAt: new Date().toISOString(),
-      } as SyncedEvent;
-    }
-
-    // 8. Write merged events back to note
-    await writeEventsToNote(vault, file, updatedApple);
-
-    // 9. Persist sync state
+    // Persist sync state
     await saveSyncState(plugin, state);
 
-    new Notice(`Calendar synced: ${updatedApple.length} events`);
+    new Notice(`Calendar synced: ${totalEvents} events`);
   } catch (err: unknown) {
     if (err instanceof PermissionDeniedError || isPermissionDenied(err)) {
       showPermissionDeniedNotice("Calendar");

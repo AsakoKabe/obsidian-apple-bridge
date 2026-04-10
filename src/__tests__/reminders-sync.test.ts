@@ -73,6 +73,9 @@ function createMockPlugin(
       remindersFolder: "",
       notesFolder: "Apple Notes",
       contactsFolder: "People",
+      // Default to today-only range so existing tests remain unchanged
+      syncRangePastDays: 0,
+      syncRangeFutureDays: 0,
       ...settingsOverrides,
     },
     app: { vault },
@@ -408,5 +411,72 @@ describe("syncReminders", () => {
       `Daily/${NOTE_PATH}`,
       expect.any(String)
     );
+  });
+
+  // ---------------------------------------------------------------------------
+  // Multi-day sync range tests
+  // ---------------------------------------------------------------------------
+
+  it("writes reminder with due date within range to its due-date note", async () => {
+    vi.mocked(fetchReminders).mockResolvedValue([
+      makeReminder({ id: "rem-future", title: "Future Task", dueDate: "2026-04-12T00:00:00.000Z" }),
+    ]);
+
+    // Range covers today + 3 future days (so April 12 is in range)
+    const plugin = createMockPlugin({}, { syncRangePastDays: 0, syncRangeFutureDays: 3 });
+    await syncReminders(plugin as never);
+
+    const modifyCalls = vi.mocked(plugin.app.vault.modify).mock.calls;
+    const writtenPaths = modifyCalls.map((call) => (call[0] as TFile).path);
+    expect(writtenPaths).toContain("2026-04-12.md");
+
+    const futureWrite = modifyCalls.find((call) => (call[0] as TFile).path === "2026-04-12.md")![1] as string;
+    expect(futureWrite).toContain("Future Task");
+  });
+
+  it("writes reminder with due date outside range to today's note", async () => {
+    vi.mocked(fetchReminders).mockResolvedValue([
+      makeReminder({ id: "rem-far", title: "Far Future Task", dueDate: "2026-04-20T00:00:00.000Z" }),
+    ]);
+
+    // Range only covers today (range 0/0), April 20 is outside
+    const plugin = createMockPlugin({}, { syncRangePastDays: 0, syncRangeFutureDays: 0 });
+    await syncReminders(plugin as never);
+
+    const modifyCalls = vi.mocked(plugin.app.vault.modify).mock.calls;
+    const writtenPaths = modifyCalls.map((call) => (call[0] as TFile).path);
+    // Should be in today's note, not a future note
+    expect(writtenPaths).toContain(NOTE_PATH);
+    expect(writtenPaths).not.toContain("2026-04-20.md");
+
+    const todayWrite = modifyCalls.find((call) => (call[0] as TFile).path === NOTE_PATH)![1] as string;
+    expect(todayWrite).toContain("Far Future Task");
+  });
+
+  it("writes reminders without due date to today's note even with wide range", async () => {
+    vi.mocked(fetchReminders).mockResolvedValue([
+      makeReminder({ id: "rem-nodue", title: "No Due Date Task", dueDate: null }),
+    ]);
+
+    const plugin = createMockPlugin({}, { syncRangePastDays: 7, syncRangeFutureDays: 14 });
+    await syncReminders(plugin as never);
+
+    const modifyCalls = vi.mocked(plugin.app.vault.modify).mock.calls;
+    const todayWrite = modifyCalls.find((call) => (call[0] as TFile).path === NOTE_PATH)?.[1] as string;
+    expect(todayWrite).toContain("No Due Date Task");
+  });
+
+  it("skips creating notes for days with no reminders and no existing note", async () => {
+    vi.mocked(fetchReminders).mockResolvedValue([
+      makeReminder({ id: "rem-today", title: "Today Task", dueDate: null }),
+    ]);
+
+    const plugin = createMockPlugin({}, { syncRangePastDays: 1, syncRangeFutureDays: 1 });
+    await syncReminders(plugin as never);
+
+    const createCalls = vi.mocked(plugin.app.vault.create).mock.calls.map((c) => c[0]);
+    expect(createCalls).not.toContain("2026-04-09.md");
+    expect(createCalls).not.toContain("2026-04-11.md");
+    expect(createCalls).toContain(NOTE_PATH);
   });
 });
