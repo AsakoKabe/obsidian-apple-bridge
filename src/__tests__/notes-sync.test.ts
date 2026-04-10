@@ -6,11 +6,42 @@ vi.mock("../notes-bridge", () => ({
   fetchNoteById: vi.fn(),
   listNoteFolders: vi.fn(),
   htmlToMarkdown: vi.fn((html: string) => html.replace(/<[^>]+>/g, "")),
+  markdownToHtml: vi.fn((md: string) => `<p>${md}</p>`),
+  updateNoteBody: vi.fn(),
+  createNote: vi.fn(),
 }));
 
-import { fetchNotes, htmlToMarkdown } from "../notes-bridge";
+import {
+  fetchNotes,
+  htmlToMarkdown,
+  markdownToHtml,
+  updateNoteBody,
+  createNote,
+} from "../notes-bridge";
 import { syncNotes } from "../notes-sync";
 import type { AppleNote } from "../notes-bridge";
+
+/** Mirror of the hashBody function from notes-sync.ts for test setup. */
+function hashBody(body: string): string {
+  let hash = 0;
+  for (let i = 0; i < body.length; i++) {
+    const ch = body.charCodeAt(i);
+    hash = ((hash << 5) - hash + ch) | 0;
+  }
+  return hash.toString(36);
+}
+
+function makeFrontmatter(id: string, folder = "Notes"): string {
+  return [
+    "---",
+    `apple_note_id: "${id}"`,
+    `created: 2026-04-01T10:00:00.000Z`,
+    `modified: 2026-04-10T09:00:00.000Z`,
+    `folder: "${folder}"`,
+    "---",
+    "",
+  ].join("\n");
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -47,6 +78,11 @@ function createMockVault(initialFiles: Record<string, string> = {}) {
     createFolder: vi.fn(async (path: string) => new TFolder(path)),
     delete: vi.fn(async (file: TFile) => {
       files.delete(file.path);
+    }),
+    getMarkdownFiles: vi.fn(() => {
+      return Array.from(files.keys())
+        .filter((p) => p.endsWith(".md"))
+        .map((p) => new TFile(p));
     }),
     _files: files,
   };
@@ -90,6 +126,9 @@ function createMockPlugin(
 beforeEach(() => {
   vi.mocked(fetchNotes).mockResolvedValue([]);
   vi.mocked(htmlToMarkdown).mockImplementation((html: string) => html.replace(/<[^>]+>/g, ""));
+  vi.mocked(markdownToHtml).mockImplementation((md: string) => `<p>${md}</p>`);
+  vi.mocked(updateNoteBody).mockResolvedValue(undefined);
+  vi.mocked(createNote).mockResolvedValue("new-note-id");
 });
 
 afterEach(() => {
@@ -301,5 +340,203 @@ describe("syncNotes", () => {
 
     const [path] = vi.mocked(plugin.app.vault.create).mock.calls[0];
     expect(path).toMatch(/^Apple Notes\//);
+  });
+});
+
+// ─── Bidirectional sync tests ─────────────────────────────────────────────
+
+describe("syncNotes — local → Apple push", () => {
+  it("pushes local edit to Apple when only local side changed", async () => {
+    const originalBody = "Hello world";
+    const editedBody = "Hello world — edited locally";
+    const vaultPath = "Apple Notes/Notes/My Note.md";
+    const vaultContent = `${makeFrontmatter("note-1")}${editedBody}\n`;
+
+    const note = makeNote({ modificationDate: "2026-04-10T09:00:00.000Z" });
+    vi.mocked(fetchNotes).mockResolvedValue([note]);
+
+    const prevState = {
+      "notes-sync-state": {
+        notes: {
+          "note-1": {
+            appleId: "note-1",
+            title: "My Note",
+            folderPath: "Notes",
+            modificationDate: "2026-04-10T09:00:00.000Z",
+            vaultPath,
+            lastSyncedAt: "2026-04-10T08:00:00.000Z",
+            bodyHash: hashBody(originalBody),
+          },
+        },
+      },
+    };
+
+    const plugin = createMockPlugin({ [vaultPath]: vaultContent }, {}, prevState);
+    await syncNotes(plugin as never);
+
+    expect(updateNoteBody).toHaveBeenCalledOnce();
+    expect(vi.mocked(updateNoteBody).mock.calls[0][0]).toBe("note-1");
+  });
+
+  it("does not push when local content is unchanged", async () => {
+    const body = "Hello world";
+    const vaultPath = "Apple Notes/Notes/My Note.md";
+    const vaultContent = `${makeFrontmatter("note-1")}${body}\n`;
+
+    const note = makeNote({ modificationDate: "2026-04-10T09:00:00.000Z" });
+    vi.mocked(fetchNotes).mockResolvedValue([note]);
+
+    const prevState = {
+      "notes-sync-state": {
+        notes: {
+          "note-1": {
+            appleId: "note-1",
+            title: "My Note",
+            folderPath: "Notes",
+            modificationDate: "2026-04-10T09:00:00.000Z",
+            vaultPath,
+            lastSyncedAt: "2026-04-10T08:00:00.000Z",
+            bodyHash: hashBody(body),
+          },
+        },
+      },
+    };
+
+    const plugin = createMockPlugin({ [vaultPath]: vaultContent }, {}, prevState);
+    await syncNotes(plugin as never);
+
+    expect(updateNoteBody).not.toHaveBeenCalled();
+    expect(plugin.app.vault.modify).not.toHaveBeenCalled();
+  });
+
+  it("creates Apple Note for vault-only file and updates frontmatter", async () => {
+    vi.mocked(fetchNotes).mockResolvedValue([]);
+    vi.mocked(createNote).mockResolvedValue("new-apple-id");
+
+    const body = "My local-only note content";
+    const vaultPath = "Apple Notes/Notes/Local Note.md";
+    const vaultContent = `---\nfolder: "Notes"\n---\n\n${body}\n`;
+
+    const plugin = createMockPlugin({ [vaultPath]: vaultContent });
+    await syncNotes(plugin as never);
+
+    expect(createNote).toHaveBeenCalledOnce();
+    expect(vi.mocked(createNote).mock.calls[0][0]).toBe("Notes");
+    expect(vi.mocked(createNote).mock.calls[0][1]).toBe("Local Note");
+
+    // Frontmatter should be updated with the new apple_note_id
+    expect(plugin.app.vault.modify).toHaveBeenCalled();
+    const modifiedContent = vi.mocked(plugin.app.vault.modify).mock.calls[0][1] as string;
+    expect(modifiedContent).toContain('apple_note_id: "new-apple-id"');
+  });
+
+  it("skips vault files outside the notes folder", async () => {
+    vi.mocked(fetchNotes).mockResolvedValue([]);
+
+    const plugin = createMockPlugin({
+      "Other Folder/Note.md": "---\nfolder: \"Notes\"\n---\n\nsome body\n",
+    });
+    await syncNotes(plugin as never);
+
+    expect(createNote).not.toHaveBeenCalled();
+  });
+});
+
+describe("syncNotes — conflict resolution", () => {
+  function makeConflictSetup(resolution: string) {
+    const originalBody = "Original content";
+    const editedBody = "Locally edited content";
+    const vaultPath = "Apple Notes/Notes/My Note.md";
+    const vaultContent = `${makeFrontmatter("note-1")}${editedBody}\n`;
+
+    // Remote has a newer modificationDate → remote changed
+    const note = makeNote({ modificationDate: "2026-04-10T12:00:00.000Z" });
+    vi.mocked(fetchNotes).mockResolvedValue([note]);
+
+    const prevState = {
+      "notes-sync-state": {
+        notes: {
+          "note-1": {
+            appleId: "note-1",
+            title: "My Note",
+            folderPath: "Notes",
+            modificationDate: "2026-04-10T09:00:00.000Z",
+            vaultPath,
+            lastSyncedAt: "2026-04-10T08:00:00.000Z",
+            bodyHash: hashBody(originalBody),
+          },
+        },
+      },
+    };
+
+    return createMockPlugin(
+      { [vaultPath]: vaultContent },
+      { conflictResolution: resolution },
+      prevState
+    );
+  }
+
+  it("remote-wins: overwrites vault with remote content on conflict", async () => {
+    const plugin = makeConflictSetup("remote-wins");
+    await syncNotes(plugin as never);
+
+    // Remote wins → vault gets overwritten, no push to Apple
+    expect(updateNoteBody).not.toHaveBeenCalled();
+    expect(plugin.app.vault.modify).toHaveBeenCalled();
+  });
+
+  it("local-wins: pushes local content to Apple on conflict", async () => {
+    const plugin = makeConflictSetup("local-wins");
+    await syncNotes(plugin as never);
+
+    // Local wins → push to Apple
+    expect(updateNoteBody).toHaveBeenCalledOnce();
+    expect(vi.mocked(updateNoteBody).mock.calls[0][0]).toBe("note-1");
+  });
+
+  it("most-recent: remote wins when remote modificationDate is newer", async () => {
+    const plugin = makeConflictSetup("most-recent");
+    // Remote modificationDate (2026-04-10T12:00) is newer than lastSyncedAt (2026-04-10T08:00)
+    await syncNotes(plugin as never);
+
+    expect(updateNoteBody).not.toHaveBeenCalled();
+    expect(plugin.app.vault.modify).toHaveBeenCalled();
+  });
+
+  it("most-recent: local wins when local edit is newer than remote", async () => {
+    const originalBody = "Original content";
+    const editedBody = "Locally edited content";
+    const vaultPath = "Apple Notes/Notes/My Note.md";
+    const vaultContent = `${makeFrontmatter("note-1")}${editedBody}\n`;
+
+    // Remote modificationDate is OLDER than lastSyncedAt → local is newer
+    const note = makeNote({ modificationDate: "2026-04-10T07:00:00.000Z" });
+    vi.mocked(fetchNotes).mockResolvedValue([note]);
+
+    const prevState = {
+      "notes-sync-state": {
+        notes: {
+          "note-1": {
+            appleId: "note-1",
+            title: "My Note",
+            folderPath: "Notes",
+            modificationDate: "2026-04-10T06:00:00.000Z",
+            vaultPath,
+            lastSyncedAt: "2026-04-10T08:00:00.000Z",
+            bodyHash: hashBody(originalBody),
+          },
+        },
+      },
+    };
+
+    const plugin = createMockPlugin(
+      { [vaultPath]: vaultContent },
+      { conflictResolution: "most-recent" },
+      prevState
+    );
+    await syncNotes(plugin as never);
+
+    // Local is newer → push to Apple
+    expect(updateNoteBody).toHaveBeenCalledOnce();
   });
 });

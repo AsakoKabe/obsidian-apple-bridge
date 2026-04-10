@@ -222,3 +222,199 @@ export function htmlToMarkdown(html: string): string {
 
   return md;
 }
+
+/**
+ * Convert Markdown back to HTML suitable for Apple Notes.
+ * This is the reverse of htmlToMarkdown — it handles the subset of
+ * markdown that htmlToMarkdown produces.
+ */
+export function markdownToHtml(md: string): string {
+  if (!md) return "";
+
+  const lines = md.split("\n");
+  const htmlLines: string[] = [];
+  let inCodeBlock = false;
+  let codeBlockContent: string[] = [];
+  let inList = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Fenced code block toggle
+    if (line.match(/^```/)) {
+      if (!inCodeBlock) {
+        if (inList) {
+          htmlLines.push("</ul>");
+          inList = false;
+        }
+        inCodeBlock = true;
+        codeBlockContent = [];
+        continue;
+      } else {
+        htmlLines.push(`<pre>${codeBlockContent.join("\n")}</pre>`);
+        inCodeBlock = false;
+        continue;
+      }
+    }
+
+    if (inCodeBlock) {
+      codeBlockContent.push(escapeHtml(line));
+      continue;
+    }
+
+    // Horizontal rule
+    if (line.match(/^---+$/)) {
+      if (inList) {
+        htmlLines.push("</ul>");
+        inList = false;
+      }
+      htmlLines.push("<hr/>");
+      continue;
+    }
+
+    // Headings
+    const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
+    if (headingMatch) {
+      if (inList) {
+        htmlLines.push("</ul>");
+        inList = false;
+      }
+      const level = headingMatch[1].length;
+      const text = processInline(escapeHtml(headingMatch[2]));
+      htmlLines.push(`<h${level}>${text}</h${level}>`);
+      continue;
+    }
+
+    // Blockquote
+    const bqMatch = line.match(/^>\s?(.*)$/);
+    if (bqMatch) {
+      if (inList) {
+        htmlLines.push("</ul>");
+        inList = false;
+      }
+      const text = processInline(escapeHtml(bqMatch[1]));
+      htmlLines.push(`<blockquote>${text}</blockquote>`);
+      continue;
+    }
+
+    // Checklist: - [x] or - [ ]
+    const checkMatch = line.match(/^- \[([ x])\]\s+(.+)$/);
+    if (checkMatch) {
+      if (!inList) {
+        htmlLines.push("<ul>");
+        inList = true;
+      }
+      const checked = checkMatch[1] === "x";
+      const text = processInline(escapeHtml(checkMatch[2]));
+      htmlLines.push(
+        checked ? `<li class="checked">${text}</li>` : `<li>${text}</li>`
+      );
+      continue;
+    }
+
+    // Unordered list item: - text
+    const liMatch = line.match(/^- (.+)$/);
+    if (liMatch) {
+      if (!inList) {
+        htmlLines.push("<ul>");
+        inList = true;
+      }
+      const text = processInline(escapeHtml(liMatch[1]));
+      htmlLines.push(`<li>${text}</li>`);
+      continue;
+    }
+
+    // Close list if we hit a non-list line
+    if (inList) {
+      htmlLines.push("</ul>");
+      inList = false;
+    }
+
+    // Empty line
+    if (line.trim() === "") {
+      continue;
+    }
+
+    // Regular line — treat as text with inline formatting
+    htmlLines.push(processInline(escapeHtml(line)));
+  }
+
+  // Close unclosed list
+  if (inList) {
+    htmlLines.push("</ul>");
+  }
+
+  // Close unclosed code block
+  if (inCodeBlock) {
+    htmlLines.push(`<pre>${codeBlockContent.join("\n")}</pre>`);
+  }
+
+  return htmlLines.join("<br/>");
+}
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function processInline(text: string): string {
+  let result = text;
+
+  // Inline code (must come before bold/italic to avoid conflicts)
+  result = result.replace(/`([^`]+)`/g, "<code>$1</code>");
+
+  // Images: ![alt](src)
+  result = result.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1"/>');
+
+  // Links: [text](url)
+  result = result.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+
+  // Bold: **text**
+  result = result.replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+
+  // Italic: *text* (but not **)
+  result = result.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, "<i>$1</i>");
+
+  // Strikethrough: ~~text~~
+  result = result.replace(/~~([^~]+)~~/g, "<s>$1</s>");
+
+  return result;
+}
+
+export async function updateNoteBody(noteId: string, htmlBody: string): Promise<void> {
+  const safeStr = (s: string) => s.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  const safeBody = safeStr(htmlBody);
+  const script = `
+    const app = Application("Notes");
+    const folders = app.folders();
+    for (const folder of folders) {
+      const matches = folder.notes.whose({ id: "${safeStr(noteId)}" })();
+      if (matches.length > 0) {
+        matches[0].body = "${safeBody}";
+        break;
+      }
+    }
+  `;
+  await runJxa(script);
+}
+
+export async function createNote(
+  folderName: string,
+  title: string,
+  htmlBody: string
+): Promise<string> {
+  const safeStr = (s: string) => s.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  const script = `
+    const app = Application("Notes");
+    const folder = app.folders.whose({ name: "${safeStr(folderName)}" })[0];
+    const note = app.Note({ name: "${safeStr(title)}", body: "${safeStr(htmlBody)}" });
+    folder.notes.push(note);
+    note.id();
+  `;
+  const raw = await runJxa(script);
+  return raw.trim();
+}

@@ -1,5 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { htmlToMarkdown, listNoteFolders, fetchNotes, fetchNoteById } from "../notes-bridge";
+import {
+  htmlToMarkdown,
+  markdownToHtml,
+  listNoteFolders,
+  fetchNotes,
+  fetchNoteById,
+  updateNoteBody,
+  createNote,
+} from "../notes-bridge";
 import { execFile } from "child_process";
 
 vi.mock("child_process", () => ({
@@ -338,5 +346,201 @@ describe("fetchNoteById", () => {
   it("rejects on JXA error", async () => {
     simulateExecFileError("failed", "access denied");
     await expect(fetchNoteById("note-1")).rejects.toThrow("JXA error: access denied");
+  });
+});
+
+// ─── markdownToHtml tests ────────────────────────────────────────────────
+
+describe("markdownToHtml", () => {
+  it("converts h1 headings", () => {
+    expect(markdownToHtml("# Title")).toContain("<h1>Title</h1>");
+  });
+
+  it("converts h2 headings", () => {
+    expect(markdownToHtml("## Section")).toContain("<h2>Section</h2>");
+  });
+
+  it("converts h3 headings", () => {
+    expect(markdownToHtml("### Sub")).toContain("<h3>Sub</h3>");
+  });
+
+  it("converts h4 through h6 headings", () => {
+    expect(markdownToHtml("#### H4")).toContain("<h4>H4</h4>");
+    expect(markdownToHtml("##### H5")).toContain("<h5>H5</h5>");
+    expect(markdownToHtml("###### H6")).toContain("<h6>H6</h6>");
+  });
+
+  it("converts bold text", () => {
+    expect(markdownToHtml("**bold**")).toContain("<b>bold</b>");
+  });
+
+  it("converts italic text", () => {
+    expect(markdownToHtml("*italic*")).toContain("<i>italic</i>");
+  });
+
+  it("does not confuse bold and italic", () => {
+    const result = markdownToHtml("**bold** and *italic*");
+    expect(result).toContain("<b>bold</b>");
+    expect(result).toContain("<i>italic</i>");
+  });
+
+  it("converts strikethrough", () => {
+    expect(markdownToHtml("~~deleted~~")).toContain("<s>deleted</s>");
+  });
+
+  it("converts links", () => {
+    expect(markdownToHtml("[text](https://example.com)")).toContain(
+      '<a href="https://example.com">text</a>'
+    );
+  });
+
+  it("converts images with alt text", () => {
+    expect(markdownToHtml("![photo](img.png)")).toContain('<img src="img.png" alt="photo"/>');
+  });
+
+  it("converts images without alt text", () => {
+    expect(markdownToHtml("![](img.png)")).toContain('<img src="img.png" alt=""/>');
+  });
+
+  it("converts unordered list items", () => {
+    const result = markdownToHtml("- Item one\n- Item two");
+    expect(result).toContain("<ul>");
+    expect(result).toContain("<li>Item one</li>");
+    expect(result).toContain("<li>Item two</li>");
+    expect(result).toContain("</ul>");
+  });
+
+  it("converts checked checklist items", () => {
+    const result = markdownToHtml("- [x] Done task");
+    expect(result).toContain('<li class="checked">Done task</li>');
+  });
+
+  it("converts unchecked checklist items", () => {
+    const result = markdownToHtml("- [ ] Open task");
+    expect(result).toContain("<li>Open task</li>");
+  });
+
+  it("converts inline code", () => {
+    expect(markdownToHtml("`const x = 1`")).toContain("<code>const x = 1</code>");
+  });
+
+  it("converts fenced code blocks", () => {
+    const result = markdownToHtml("```\nfunction foo() {}\n```");
+    expect(result).toContain("<pre>");
+    expect(result).toContain("function foo() {}");
+    expect(result).toContain("</pre>");
+  });
+
+  it("converts fenced code blocks with language specifier", () => {
+    const result = markdownToHtml("```ts\nconst x = 1;\n```");
+    expect(result).toContain("<pre>");
+    expect(result).toContain("const x = 1;");
+  });
+
+  it("converts blockquotes", () => {
+    expect(markdownToHtml("> quoted text")).toContain("<blockquote>quoted text</blockquote>");
+  });
+
+  it("converts horizontal rules", () => {
+    expect(markdownToHtml("---")).toContain("<hr/>");
+  });
+
+  it("converts line breaks to <br/>", () => {
+    const result = markdownToHtml("line one\nline two");
+    expect(result).toContain("line one");
+    expect(result).toContain("line two");
+    expect(result).toContain("<br/>");
+  });
+
+  it("encodes HTML entities", () => {
+    const result = markdownToHtml("cats & dogs < foxes > mice");
+    expect(result).toContain("&amp;");
+    expect(result).toContain("&lt;");
+    expect(result).toContain("&gt;");
+  });
+
+  it("handles empty input", () => {
+    expect(markdownToHtml("")).toBe("");
+  });
+
+  it("handles plain text", () => {
+    const result = markdownToHtml("just plain text");
+    expect(result).toContain("just plain text");
+  });
+
+  it("roundtrips simple content through htmlToMarkdown → markdownToHtml", () => {
+    const original = "<h1>Title</h1><p><b>bold</b> and <i>italic</i></p>";
+    const md = htmlToMarkdown(original);
+    const html = markdownToHtml(md);
+    expect(html).toContain("Title");
+    expect(html).toContain("<b>bold</b>");
+    expect(html).toContain("<i>italic</i>");
+  });
+});
+
+// ─── updateNoteBody tests ────────────────────────────────────────────────
+
+describe("updateNoteBody", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("calls osascript with the note ID and HTML body", async () => {
+    simulateExecFile("");
+    await updateNoteBody("note-42", "<p>Updated</p>");
+
+    expect(mockExecFile).toHaveBeenCalledOnce();
+    const scriptArg = (mockExecFile.mock.calls[0][1] as string[])[3];
+    expect(scriptArg).toContain('"note-42"');
+    expect(scriptArg).toContain("Updated");
+  });
+
+  it("escapes special characters in note ID", async () => {
+    simulateExecFile("");
+    await updateNoteBody('id-"special"', "<p>body</p>");
+
+    const scriptArg = (mockExecFile.mock.calls[0][1] as string[])[3];
+    expect(scriptArg).toContain('id-\\"special\\"');
+  });
+
+  it("rejects on JXA error", async () => {
+    simulateExecFileError("failed", "permission denied");
+    await expect(updateNoteBody("note-1", "<p>x</p>")).rejects.toThrow(
+      "JXA error: permission denied"
+    );
+  });
+});
+
+// ─── createNote tests ────────────────────────────────────────────────────
+
+describe("createNote", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns the new note ID from JXA", async () => {
+    simulateExecFile("note-new-123");
+    const id = await createNote("Work", "My New Note", "<p>Content</p>");
+
+    expect(id).toBe("note-new-123");
+    const scriptArg = (mockExecFile.mock.calls[0][1] as string[])[3];
+    expect(scriptArg).toContain('"Work"');
+    expect(scriptArg).toContain("My New Note");
+  });
+
+  it("escapes special characters in folder name and title", async () => {
+    simulateExecFile("note-id");
+    await createNote('Folder "A"', 'Note "B"', "<p>body</p>");
+
+    const scriptArg = (mockExecFile.mock.calls[0][1] as string[])[3];
+    expect(scriptArg).toContain('Folder \\"A\\"');
+    expect(scriptArg).toContain('Note \\"B\\"');
+  });
+
+  it("rejects on JXA error", async () => {
+    simulateExecFileError("failed", "Notes unavailable");
+    await expect(createNote("Notes", "Title", "<p>x</p>")).rejects.toThrow(
+      "JXA error: Notes unavailable"
+    );
   });
 });
