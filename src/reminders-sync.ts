@@ -6,12 +6,7 @@ import {
   isPermissionDenied,
   showPermissionDeniedNotice,
 } from "./permissions";
-import {
-  dailyNotePath,
-  toDateKey,
-  buildDateRange,
-  ensureDailyNote,
-} from "./vault-utils";
+import { dailyNotePath, toDateKey, buildDateRange, ensureDailyNote } from "./vault-utils";
 import { filterByName } from "./sync-filter";
 import type AppleBridgePlugin from "./main";
 

@@ -201,10 +201,7 @@ describe("ensureDailyNote", () => {
 
   it("creates a new file with title heading when it doesn't exist", async () => {
     const result = await ensureDailyNote(vault, "Calendar/2026-04-10.md");
-    expect(vault.create).toHaveBeenCalledWith(
-      "Calendar/2026-04-10.md",
-      "# 2026-04-10\n\n"
-    );
+    expect(vault.create).toHaveBeenCalledWith("Calendar/2026-04-10.md", "# 2026-04-10\n\n");
     expect(result).toBeInstanceOf(TFile);
   });
 

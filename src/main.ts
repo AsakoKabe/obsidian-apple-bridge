@@ -379,9 +379,7 @@ class AppleBridgeSettingTab extends PluginSettingTab {
     defaultTmplSetting.settingEl.addClass("apple-bridge-template-setting");
 
     // Render existing per-calendar template entries
-    const calendarNames = Object.keys(this.plugin.settings.eventTemplates).filter(
-      (k) => k !== "*"
-    );
+    const calendarNames = Object.keys(this.plugin.settings.eventTemplates).filter((k) => k !== "*");
     for (const calName of calendarNames) {
       this.renderCalendarTemplateSetting(calSection, calName);
     }

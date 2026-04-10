@@ -205,20 +205,24 @@ describe("createQuickReminder", () => {
   });
 
   it("preserves existing sync state when saving", async () => {
-    const plugin = createMockPlugin({}, {}, {
-      "reminders-sync-state": {
-        reminders: {
-          "existing-1": {
-            appleId: "existing-1",
-            title: "Old reminder",
-            isCompleted: false,
-            dueDate: null,
-            notes: "",
-            lastSyncedAt: "2026-04-09T00:00:00.000Z",
+    const plugin = createMockPlugin(
+      {},
+      {},
+      {
+        "reminders-sync-state": {
+          reminders: {
+            "existing-1": {
+              appleId: "existing-1",
+              title: "Old reminder",
+              isCompleted: false,
+              dueDate: null,
+              notes: "",
+              lastSyncedAt: "2026-04-09T00:00:00.000Z",
+            },
           },
         },
-      },
-    });
+      }
+    );
     const editor = createMockEditor("New one");
 
     await createQuickReminder(plugin as any, editor as any);

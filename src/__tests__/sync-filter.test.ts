@@ -119,7 +119,7 @@ describe("filterByName — edge cases", () => {
   });
 
   it("handles names with special characters", () => {
-    const filter: SyncFilter = { mode: "include", names: ["My \"Special\" List"] };
+    const filter: SyncFilter = { mode: "include", names: ['My "Special" List'] };
     const result = filterByName(items('My "Special" List', "Other"), nameOf, filter);
     expect(result.map((i) => i.name)).toEqual(['My "Special" List']);
   });

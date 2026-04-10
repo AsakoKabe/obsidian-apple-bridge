@@ -182,10 +182,7 @@ describe("DEFAULT_EVENT_TEMPLATE", () => {
   });
 
   it("matches current formatEventLine output for all-day event with location", () => {
-    const result = renderEventTemplate(
-      DEFAULT_EVENT_TEMPLATE,
-      makeEvent({ isAllDay: true })
-    );
+    const result = renderEventTemplate(DEFAULT_EVENT_TEMPLATE, makeEvent({ isAllDay: true }));
     expect(result).toBe("- [ ] all-day Team standup 📍 Room 42 [id:evt-1]");
   });
 });
@@ -215,10 +212,7 @@ describe("renderEventTemplate — edge cases", () => {
   });
 
   it("handles special regex characters in event data", () => {
-    const result = renderEventTemplate(
-      "{{title}}",
-      makeEvent({ title: "Meeting (1:1) — $100" })
-    );
+    const result = renderEventTemplate("{{title}}", makeEvent({ title: "Meeting (1:1) — $100" }));
     expect(result).toBe("Meeting (1:1) — $100");
   });
 });

@@ -39,10 +39,7 @@ const EVENT_SECTION_HEADER = "## Calendar Events";
 const EVENT_REGEX =
   /^- \[(?<done>[ x])\] (?<time>\d{1,2}:\d{2}(?:\s*-\s*\d{1,2}:\d{2})?)?\s*(?<title>.+?)(?:\s*📍\s*(?<location>.+?))?(?:\s*\[id:(?<id>[^\]]+)\])?$/;
 
-function resolveTemplate(
-  ev: CalendarEvent,
-  templates: Record<string, string>
-): string {
+function resolveTemplate(ev: CalendarEvent, templates: Record<string, string>): string {
   return templates[ev.calendarName] || templates["*"] || DEFAULT_EVENT_TEMPLATE;
 }
 
