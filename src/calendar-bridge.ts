@@ -13,6 +13,7 @@ export interface CalendarEvent {
   calendarWritable: boolean;
   accountName: string;
   accountType: string; // "iCloud", "Exchange", "Google", "CalDAV", "Local", etc.
+  modificationDate: string | null; // ISO 8601 or null
 }
 
 export interface CalendarInfo {
@@ -108,7 +109,8 @@ export async function fetchEvents(startDate: Date, endDate: Date): Promise<Calen
           url: ev.url() || "",
           calendarWritable: calWritable,
           accountName: accountName,
-          accountType: accountType
+          accountType: accountType,
+          modificationDate: (() => { try { const s = ev.stampDate(); return s ? s.toISOString() : null; } catch(_) { return null; } })()
         });
       }
     }

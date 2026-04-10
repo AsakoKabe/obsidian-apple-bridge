@@ -31,6 +31,7 @@ function makeEvent(overrides: Partial<CalendarEvent> = {}): CalendarEvent {
     calendarWritable: true,
     accountName: "",
     accountType: "",
+    modificationDate: null,
     ...overrides,
   };
 }

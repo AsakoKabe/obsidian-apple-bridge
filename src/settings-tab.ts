@@ -474,6 +474,15 @@ export class AppleBridgeSettingTab extends PluginSettingTab {
       );
 
     new Setting(genSection)
+      .setName("Force full sync")
+      .setDesc("Bypass incremental sync and re-process all items")
+      .addButton((btn) =>
+        btn.setButtonText("Run Full Sync").onClick(() => {
+          this.plugin.syncAll({ forceFullSync: true });
+        })
+      );
+
+    new Setting(genSection)
       .setName("Restart setup wizard")
       .setDesc("Re-run the first-run onboarding to test permissions again")
       .addButton((btn) =>

@@ -51,11 +51,12 @@ _Enable or disable individual modules, set sync intervals, choose folders, and p
 
 ### Sync triggers
 
-| Trigger   | How                                    |
-| --------- | -------------------------------------- |
-| Automatic | Configurable interval (default 15 min) |
-| Manual    | Command palette: `Sync Apple Apps now` |
-| Ribbon    | Click the refresh icon in the sidebar  |
+| Trigger         | How                                               |
+| --------------- | ------------------------------------------------- |
+| Automatic       | Configurable interval (default 15 min)            |
+| Manual          | Command palette: `Sync Apple Apps now`            |
+| Ribbon          | Click the refresh icon in the sidebar             |
+| Force full sync | Command palette: `Force Full Sync (ignore cache)` |
 
 ### Conflict resolution (Calendar & Reminders)
 
@@ -321,7 +322,7 @@ WHERE contains(apple_calendars, "Work")
 
 - **Sync log** — persistent log of sync operations for troubleshooting ✅
 - **Dataview metadata** — expose sync data as frontmatter fields for Dataview queries ✅
-- **Incremental sync** — only fetch changes since last sync for better performance
+- **Incremental sync** — only fetch changes since last sync for better performance ✅
 - **Completed reminder archiving** — auto-move completed reminders to an archive note ✅
 - **Community plugin submission** — publish to the Obsidian community plugin directory
 

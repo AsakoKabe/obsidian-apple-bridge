@@ -24,6 +24,11 @@ import {
 import { renderEventTemplate, DEFAULT_EVENT_TEMPLATE } from "./event-template";
 import { filterByName } from "./sync-filter";
 import { updateFrontmatter } from "./dataview-metadata";
+import {
+  isUnchangedSinceLastSync,
+  loadIncrementalState,
+  saveLastSuccessfulSync,
+} from "./incremental-state";
 import type AppleBridgePlugin from "./main";
 
 interface SyncedEvent {
@@ -193,7 +198,8 @@ async function syncCalendarForDate(
   date: Date,
   dayEvents: CalendarEvent[],
   state: SyncState,
-  defaultCalendarWritable: boolean
+  defaultCalendarWritable: boolean,
+  lastSync: string | null
 ): Promise<CalendarEvent[]> {
   const vault = plugin.app.vault;
   const calendarFolder = plugin.settings.calendarFolder ?? "";
@@ -268,6 +274,17 @@ async function syncCalendarForDate(
   const updatedApple: CalendarEvent[] = [];
   for (const ev of dayEvents) {
     const prev = state.events[ev.id];
+
+    // Incremental sync: skip items unchanged since last successful sync
+    if (
+      prev &&
+      isUnchangedSinceLastSync(ev.modificationDate, lastSync) &&
+      !localChanges.has(ev.id)
+    ) {
+      updatedApple.push(ev);
+      continue;
+    }
+
     const remoteChanged = prev ? hasEventChanged(ev, prev) : false;
     const localChanged = localChanges.has(ev.id);
 
@@ -349,7 +366,10 @@ async function syncCalendarForDate(
   return updatedApple;
 }
 
-export async function syncCalendar(plugin: AppleBridgePlugin): Promise<number> {
+export async function syncCalendar(
+  plugin: AppleBridgePlugin,
+  options: { forceFullSync?: boolean } = {}
+): Promise<number> {
   if (!plugin.settings.syncCalendar) return 0;
 
   // Pre-flight: verify macOS has granted Calendar access before doing any work.
@@ -380,6 +400,9 @@ export async function syncCalendar(plugin: AppleBridgePlugin): Promise<number> {
       plugin.settings.calendarFilter
     );
     const state = await loadSyncState(plugin);
+    const syncStartTime = new Date().toISOString();
+    const incrementalState = await loadIncrementalState(() => plugin.loadData());
+    const lastSync = options.forceFullSync ? null : incrementalState.lastSuccessfulSync.calendar;
 
     // Determine if the default calendar is writable
     let defaultCalendarWritable = true;
@@ -422,13 +445,20 @@ export async function syncCalendar(plugin: AppleBridgePlugin): Promise<number> {
         date,
         dayEvents,
         state,
-        defaultCalendarWritable
+        defaultCalendarWritable,
+        lastSync
       );
       totalEvents += written.length;
     }
 
-    // Persist sync state
+    // Persist sync state and incremental timestamp
     await saveSyncState(plugin, state);
+    await saveLastSuccessfulSync(
+      "calendar",
+      syncStartTime,
+      () => plugin.loadData(),
+      (d) => plugin.saveData(d)
+    );
 
     return totalEvents;
   } catch (err: unknown) {

@@ -68,6 +68,14 @@ export default class AppleBridgePlugin extends Plugin {
     });
 
     this.addCommand({
+      id: "force-full-sync",
+      name: "Force Full Sync (ignore cache)",
+      callback: () => {
+        this.syncAll({ forceFullSync: true });
+      },
+    });
+
+    this.addCommand({
       id: "view-sync-log",
       name: "View Sync Log",
       callback: async () => {
@@ -108,11 +116,12 @@ export default class AppleBridgePlugin extends Plugin {
     await this.saveData(this.settings);
   }
 
-  async syncAll() {
+  async syncAll(options: { forceFullSync?: boolean } = {}) {
     this.statusBar.setSyncing();
+    const syncOpts = { forceFullSync: options.forceFullSync };
     const results = await Promise.allSettled([
-      this.runSync("calendar", () => syncCalendar(this)),
-      this.runSync("reminders", () => syncReminders(this)),
+      this.runSync("calendar", () => syncCalendar(this, syncOpts)),
+      this.runSync("reminders", () => syncReminders(this, syncOpts)),
       this.runSync("notes", () => syncNotes(this)),
       this.runSync("contacts", () => syncContacts(this)),
     ]);

@@ -27,6 +27,7 @@ function makeReminder(overrides: Partial<Reminder> = {}): Reminder {
     priority: 0,
     notes: "",
     completionDate: null,
+    modificationDate: null,
     ...overrides,
   };
 }

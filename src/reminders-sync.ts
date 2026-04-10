@@ -10,6 +10,11 @@ import { dailyNotePath, toDateKey, buildDateRange, ensureDailyNote } from "./vau
 import { filterByName } from "./sync-filter";
 import { updateFrontmatter } from "./dataview-metadata";
 import { resolveArchivePath, archiveCompletedReminders } from "./reminder-archive";
+import {
+  isUnchangedSinceLastSync,
+  loadIncrementalState,
+  saveLastSuccessfulSync,
+} from "./incremental-state";
 import type AppleBridgePlugin from "./main";
 
 interface SyncedReminder {
@@ -158,7 +163,8 @@ async function syncRemindersForDate(
   plugin: AppleBridgePlugin,
   date: Date,
   dayReminders: Reminder[],
-  state: ReminderSyncState
+  state: ReminderSyncState,
+  lastSync: string | null
 ): Promise<Reminder[]> {
   const vault = plugin.app.vault;
   const remindersFolder = plugin.settings.remindersFolder ?? "";
@@ -212,6 +218,13 @@ async function syncRemindersForDate(
   const mergedReminders: Reminder[] = [];
   for (const r of dayReminders) {
     const prev = state.reminders[r.id];
+
+    // Incremental sync: skip items unchanged since last successful sync
+    if (prev && isUnchangedSinceLastSync(r.modificationDate, lastSync) && !localChanges.has(r.id)) {
+      mergedReminders.push(r);
+      continue;
+    }
+
     const remoteChanged = prev ? hasReminderChanged(r, prev) : false;
     const localChanged = localChanges.has(r.id);
 
@@ -305,7 +318,10 @@ async function syncRemindersForDate(
   return mergedReminders;
 }
 
-export async function syncReminders(plugin: AppleBridgePlugin): Promise<number> {
+export async function syncReminders(
+  plugin: AppleBridgePlugin,
+  options: { forceFullSync?: boolean } = {}
+): Promise<number> {
   if (!plugin.settings.syncReminders) return 0;
 
   // Pre-flight: verify macOS has granted Reminders access before doing any work.
@@ -334,6 +350,9 @@ export async function syncReminders(plugin: AppleBridgePlugin): Promise<number> 
       plugin.settings.reminderListFilter
     );
     const state = await loadSyncState(plugin);
+    const syncStartTime = new Date().toISOString();
+    const incrementalState = await loadIncrementalState(() => plugin.loadData());
+    const lastSync = options.forceFullSync ? null : incrementalState.lastSuccessfulSync.reminders;
 
     // Group reminders by due date key. Reminders with no due date or a due date
     // outside the sync range are placed in today's bucket so they always appear.
@@ -362,12 +381,18 @@ export async function syncReminders(plugin: AppleBridgePlugin): Promise<number> 
         if (!(existingFile instanceof TFile)) continue;
       }
 
-      const written = await syncRemindersForDate(plugin, date, dayReminders, state);
+      const written = await syncRemindersForDate(plugin, date, dayReminders, state, lastSync);
       totalReminders += written.length;
     }
 
-    // Persist sync state
+    // Persist sync state and incremental timestamp
     await saveSyncState(plugin, state);
+    await saveLastSuccessfulSync(
+      "reminders",
+      syncStartTime,
+      () => plugin.loadData(),
+      (d) => plugin.saveData(d)
+    );
 
     return totalReminders;
   } catch (err: unknown) {

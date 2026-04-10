@@ -9,6 +9,7 @@ export interface Reminder {
   priority: number; // 0 = none, 1 = high, 5 = medium, 9 = low
   notes: string;
   completionDate: string | null;
+  modificationDate: string | null; // ISO 8601 or null
 }
 
 export interface ReminderList {
@@ -78,7 +79,8 @@ export async function fetchReminders(
           dueDate: dueDate ? dueDate.toISOString() : null,
           priority: r.priority(),
           notes: r.body() || "",
-          completionDate: compDate ? compDate.toISOString() : null
+          completionDate: compDate ? compDate.toISOString() : null,
+          modificationDate: (() => { try { const m = r.modificationDate(); return m ? m.toISOString() : null; } catch(_) { return null; } })()
         });
       }
     }
