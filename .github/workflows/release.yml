@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 env:
-  PLUGIN_NAME: obsidian-apple-bridge
+  PLUGIN_NAME: apple-bridge
 
 jobs:
   release:
