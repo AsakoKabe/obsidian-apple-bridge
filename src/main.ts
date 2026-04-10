@@ -1,4 +1,5 @@
 import { App, Plugin, PluginSettingTab, Setting } from "obsidian";
+import { syncCalendar } from "./calendar-sync";
 
 interface AppleBridgeSettings {
   syncReminders: boolean;
@@ -6,6 +7,7 @@ interface AppleBridgeSettings {
   syncContacts: boolean;
   syncNotes: boolean;
   syncIntervalMinutes: number;
+  defaultCalendarName: string;
 }
 
 const DEFAULT_SETTINGS: AppleBridgeSettings = {
@@ -14,6 +16,7 @@ const DEFAULT_SETTINGS: AppleBridgeSettings = {
   syncContacts: false,
   syncNotes: false,
   syncIntervalMinutes: 15,
+  defaultCalendarName: "Calendar",
 };
 
 export default class AppleBridgePlugin extends Plugin {
@@ -21,8 +24,6 @@ export default class AppleBridgePlugin extends Plugin {
 
   async onload() {
     await this.loadSettings();
-
-    console.log("Apple Bridge plugin loaded");
 
     this.addSettingTab(new AppleBridgeSettingTab(this.app, this));
 
@@ -49,7 +50,7 @@ export default class AppleBridgePlugin extends Plugin {
   }
 
   onunload() {
-    console.log("Apple Bridge plugin unloaded");
+    // cleanup handled by Obsidian's registerInterval
   }
 
   async loadSettings() {
@@ -61,9 +62,7 @@ export default class AppleBridgePlugin extends Plugin {
   }
 
   async syncAll() {
-    console.log("Syncing Apple apps...");
-    // Individual sync modules will be called here as they are implemented
-    // e.g. await syncReminders(this); await syncCalendar(this); etc.
+    await syncCalendar(this);
   }
 }
 
@@ -125,6 +124,19 @@ class AppleBridgeSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.syncNotes)
           .onChange(async (value) => {
             this.plugin.settings.syncNotes = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Default Calendar")
+      .setDesc("Apple Calendar name to create new events in")
+      .addText((text) =>
+        text
+          .setPlaceholder("Calendar")
+          .setValue(this.plugin.settings.defaultCalendarName)
+          .onChange(async (value) => {
+            this.plugin.settings.defaultCalendarName = value || "Calendar";
             await this.plugin.saveSettings();
           })
       );
