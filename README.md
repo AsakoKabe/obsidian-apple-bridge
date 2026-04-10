@@ -18,60 +18,60 @@
 
 ![Setup wizard — grant permissions and choose which modules to enable](docs/demos/setup-wizard.gif)
 
-*Grant macOS permissions and configure your sync preferences in under a minute.*
+_Grant macOS permissions and configure your sync preferences in under a minute._
 
 ### Calendar and Reminders in your daily note
 
 ![Calendar and Reminders syncing into a daily note](docs/demos/sync-in-action.gif)
 
-*Events and reminders appear in `YYYY-MM-DD.md` with two-way sync. Check off a reminder in Obsidian, it completes in Apple Reminders. Edit an event title in your daily note, it updates in Apple Calendar.*
+_Events and reminders appear in `YYYY-MM-DD.md` with two-way sync. Check off a reminder in Obsidian, it completes in Apple Reminders. Edit an event title in your daily note, it updates in Apple Calendar._
 
 ### Creating a calendar event from Obsidian
 
 ![Create Calendar Event modal](docs/demos/create-event.gif)
 
-*Use `Create Calendar Event` from the command palette to open a modal with title, date, time, location, and notes. The event lands in Apple Calendar and your daily note simultaneously.*
+_Use `Create Calendar Event` from the command palette to open a modal with title, date, time, location, and notes. The event lands in Apple Calendar and your daily note simultaneously._
 
 ### Settings and sync configuration
 
 ![Settings panel](docs/demos/settings.gif)
 
-*Enable or disable individual modules, set sync intervals, choose folders, and pick your conflict resolution strategy — all from one settings panel.*
+_Enable or disable individual modules, set sync intervals, choose folders, and pick your conflict resolution strategy — all from one settings panel._
 
 ---
 
 ## Features
 
-| Module | Direction | What syncs |
-|--------|-----------|------------|
-| **Calendar** | ↔ Two-way | Events ↔ daily note sections |
-| **Reminders** | ↔ Two-way | Reminders + completion status ↔ daily note sections |
-| **Notes** | ↔ Two-way | Apple Notes ↔ structured `.md` files with conflict resolution |
-| **Contacts** | → Apple → Obsidian | Apple Contacts as people notes with metadata |
+| Module        | Direction          | What syncs                                                    |
+| ------------- | ------------------ | ------------------------------------------------------------- |
+| **Calendar**  | ↔ Two-way          | Events ↔ daily note sections                                  |
+| **Reminders** | ↔ Two-way          | Reminders + completion status ↔ daily note sections           |
+| **Notes**     | ↔ Two-way          | Apple Notes ↔ structured `.md` files with conflict resolution |
+| **Contacts**  | → Apple → Obsidian | Apple Contacts as people notes with metadata                  |
 
 ### Sync triggers
 
-| Trigger | How |
-|---------|-----|
+| Trigger   | How                                    |
+| --------- | -------------------------------------- |
 | Automatic | Configurable interval (default 15 min) |
-| Manual | Command palette: `Sync Apple Apps now` |
-| Ribbon | Click the refresh icon in the sidebar |
+| Manual    | Command palette: `Sync Apple Apps now` |
+| Ribbon    | Click the refresh icon in the sidebar  |
 
 ### Conflict resolution (Calendar & Reminders)
 
 When both Obsidian and Apple change the same item between syncs:
 
-| Strategy | Behavior |
-|----------|----------|
+| Strategy      | Behavior                  |
+| ------------- | ------------------------- |
 | `remote-wins` | Apple data wins (default) |
-| `local-wins` | Vault data wins |
-| `most-recent` | Latest timestamp wins |
+| `local-wins`  | Vault data wins           |
+| `most-recent` | Latest timestamp wins     |
 
 ---
 
 ## Installation
 
-### Obsidian Community Plugins *(coming soon)*
+### Obsidian Community Plugins _(coming soon)_
 
 1. Open **Settings → Community Plugins → Browse**
 2. Search for **Apple Bridge**
@@ -134,11 +134,13 @@ Customize how events appear in your daily notes with per-calendar templates. Ope
 **Conditional blocks:** `{{#location}} 📍 {{location}}{{/location}}` — only renders when the value is non-empty.
 
 **Default template:**
+
 ```
 - [ ] {{time}} {{title}}{{#location}} 📍 {{location}}{{/location}} [id:{{id}}]
 ```
 
 Set a **default template** (applies to all calendars) or add **per-calendar templates** (e.g. a "Birthdays" calendar template that omits the time):
+
 ```
 - 🎂 {{title}}{{#notes}} — {{notes}}{{/notes}} [id:{{id}}]
 ```
@@ -147,11 +149,11 @@ Set a **default template** (applies to all calendars) or add **per-calendar temp
 
 Control which calendars and reminder lists are synced. Open **Settings > Apple Bridge** and configure filters for each module:
 
-| Mode | Behavior |
-|------|----------|
-| **No filter** | Sync everything (default) |
-| **Include only…** | Only sync the listed calendars/lists |
-| **Exclude…** | Sync everything except the listed calendars/lists |
+| Mode              | Behavior                                          |
+| ----------------- | ------------------------------------------------- |
+| **No filter**     | Sync everything (default)                         |
+| **Include only…** | Only sync the listed calendars/lists              |
+| **Exclude…**      | Sync everything except the listed calendars/lists |
 
 Enter calendar or list names as a comma-separated list (e.g. `Work, Personal`). Useful for excluding noisy calendars like "Birthdays" or "Holidays", or for focusing on a single project list.
 
@@ -200,26 +202,74 @@ Developer at Acme Corp
 
 Open **Settings → Apple Bridge**:
 
-| Setting | Description | Default |
-|---------|-------------|---------|
-| Sync Calendar | Enable Calendar two-way sync | On |
-| Sync Reminders | Enable Reminders two-way sync | On |
-| Sync Notes | Enable Apple Notes two-way sync | Off |
-| Sync Contacts | Enable Contacts import | Off |
-| Sync Interval | Auto-sync interval in minutes (0 = manual only) | 15 |
-| Default Calendar | Apple Calendar for new events created in Obsidian | Calendar |
-| Default Reminder List | Apple Reminders list for new reminders | Reminders |
-| Conflict Resolution | How to handle two-way conflicts | remote-wins |
-| Calendar folder | Vault folder for daily notes | *(vault root)* |
-| Reminders folder | Vault folder for daily notes | *(vault root)* |
-| Notes folder | Vault folder for imported Apple Notes | Apple Notes |
-| Contacts folder | Vault folder for imported contacts | People |
+| Setting               | Description                                       | Default        |
+| --------------------- | ------------------------------------------------- | -------------- |
+| Sync Calendar         | Enable Calendar two-way sync                      | On             |
+| Sync Reminders        | Enable Reminders two-way sync                     | On             |
+| Sync Notes            | Enable Apple Notes two-way sync                   | Off            |
+| Sync Contacts         | Enable Contacts import                            | Off            |
+| Sync Interval         | Auto-sync interval in minutes (0 = manual only)   | 15             |
+| Default Calendar      | Apple Calendar for new events created in Obsidian | Calendar       |
+| Default Reminder List | Apple Reminders list for new reminders            | Reminders      |
+| Conflict Resolution   | How to handle two-way conflicts                   | remote-wins    |
+| Calendar folder       | Vault folder for daily notes                      | _(vault root)_ |
+| Reminders folder      | Vault folder for daily notes                      | _(vault root)_ |
+| Notes folder          | Vault folder for imported Apple Notes             | Apple Notes    |
+| Contacts folder       | Vault folder for imported contacts                | People         |
+| Dataview metadata     | Add frontmatter fields for Dataview queries       | Off            |
+
+### Dataview metadata
+
+When enabled, Apple Bridge writes frontmatter fields to each daily note after sync. These fields are designed for use with the [Dataview](https://blacksmithgu.github.io/obsidian-dataview/) plugin but work with any tool that reads YAML frontmatter.
+
+**Fields added to daily notes:**
+
+| Field                  | Type   | Description                             |
+| ---------------------- | ------ | --------------------------------------- |
+| `apple_events`         | number | Count of calendar events for the day    |
+| `apple_reminders`      | number | Count of reminders for the day          |
+| `apple_calendars`      | list   | Calendar names with events that day     |
+| `apple_reminder_lists` | list   | Reminder list names with items that day |
+| `apple_last_sync`      | string | ISO 8601 timestamp of the last sync     |
+
+Fields with a zero count are omitted. Each sync module writes its own fields independently.
+
+**Example frontmatter:**
+
+```yaml
+---
+apple_events: 3
+apple_calendars:
+  - Personal
+  - Work
+apple_reminders: 2
+apple_reminder_lists:
+  - Reminders
+apple_last_sync: "2026-04-10T14:30:00.000Z"
+---
+```
+
+**Example Dataview queries:**
+
+```dataview
+TABLE apple_events AS "Events", apple_reminders AS "Reminders"
+FROM "Calendar"
+WHERE apple_events > 0
+SORT file.name DESC
+```
+
+```dataview
+LIST
+FROM "Calendar"
+WHERE contains(apple_calendars, "Work")
+```
 
 ---
 
 ## Roadmap
 
 ### Phase 1 — Core sync ✅
+
 - Two-way Calendar sync (events ↔ daily notes)
 - Two-way Reminders sync (reminders ↔ daily notes)
 - Apple Notes one-way import
@@ -228,11 +278,13 @@ Open **Settings → Apple Bridge**:
 - Onboarding wizard
 
 ### Phase 2 — Quality & range ✅
+
 - Multi-day sync range for Calendar and Reminders
 - ESLint + Prettier code quality tooling
 - Full unit test suite (vitest)
 
 ### Phase 3 — Deeper integration ✅
+
 - Quick Reminder from selection ✅
 - Status bar live indicator ✅
 - Per-calendar event templates ✅
@@ -240,9 +292,10 @@ Open **Settings → Apple Bridge**:
 - Bidirectional Notes sync with conflict resolution ✅
 - iCloud Calendar support (read-only shared calendars) ✅
 
-### Phase 4 — Polish & ecosystem *(in progress)*
+### Phase 4 — Polish & ecosystem _(in progress)_
+
 - **Sync log** — persistent log of sync operations for troubleshooting ✅
-- **Dataview metadata** — expose sync data as frontmatter fields for Dataview queries
+- **Dataview metadata** — expose sync data as frontmatter fields for Dataview queries ✅
 - **Incremental sync** — only fetch changes since last sync for better performance
 - **Completed reminder archiving** — auto-move completed reminders to an archive note
 - **Community plugin submission** — publish to the Obsidian community plugin directory

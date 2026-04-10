@@ -21,6 +21,7 @@ export interface AppleBridgeSettings {
   eventTemplates: Record<string, string>;
   calendarFilter?: SyncFilter;
   reminderListFilter?: SyncFilter;
+  dataviewMetadata: boolean;
 }
 
 export const DEFAULT_SETTINGS: AppleBridgeSettings = {
@@ -40,4 +41,5 @@ export const DEFAULT_SETTINGS: AppleBridgeSettings = {
   syncRangePastDays: 7,
   syncRangeFutureDays: 14,
   eventTemplates: {},
+  dataviewMetadata: false,
 };

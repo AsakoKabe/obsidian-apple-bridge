@@ -8,6 +8,7 @@ import {
 } from "./permissions";
 import { dailyNotePath, toDateKey, buildDateRange, ensureDailyNote } from "./vault-utils";
 import { filterByName } from "./sync-filter";
+import { updateFrontmatter } from "./dataview-metadata";
 import type AppleBridgePlugin from "./main";
 
 interface SyncedReminder {
@@ -267,6 +268,18 @@ async function syncRemindersForDate(
 
   // Write merged reminders back to note
   await writeRemindersToNote(vault, file, mergedReminders);
+
+  // Update Dataview frontmatter if enabled
+  if (plugin.settings.dataviewMetadata && mergedReminders.length > 0) {
+    const content = await vault.read(file);
+    const listNames = [...new Set(mergedReminders.map((r) => r.listName))].sort();
+    const updated = updateFrontmatter(content, {
+      apple_reminders: mergedReminders.length,
+      apple_reminder_lists: listNames,
+      apple_last_sync: new Date().toISOString(),
+    });
+    await vault.modify(file, updated);
+  }
 
   return mergedReminders;
 }

@@ -20,6 +20,7 @@ export default defineConfig({
         "src/event-template.ts",
         "src/sync-filter.ts",
         "src/sync-log.ts",
+        "src/dataview-metadata.ts",
       ],
       thresholds: {
         lines: 80,

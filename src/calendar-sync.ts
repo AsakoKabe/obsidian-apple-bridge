@@ -23,6 +23,7 @@ import {
 } from "./vault-utils";
 import { renderEventTemplate, DEFAULT_EVENT_TEMPLATE } from "./event-template";
 import { filterByName } from "./sync-filter";
+import { updateFrontmatter } from "./dataview-metadata";
 import type AppleBridgePlugin from "./main";
 
 interface SyncedEvent {
@@ -332,6 +333,18 @@ async function syncCalendarForDate(
 
   // Write merged events back to note
   await writeEventsToNote(vault, file, updatedApple, templates);
+
+  // Update Dataview frontmatter if enabled
+  if (plugin.settings.dataviewMetadata && updatedApple.length > 0) {
+    const content = await vault.read(file);
+    const calNames = [...new Set(updatedApple.map((ev) => ev.calendarName))].sort();
+    const updated = updateFrontmatter(content, {
+      apple_events: updatedApple.length,
+      apple_calendars: calNames,
+      apple_last_sync: new Date().toISOString(),
+    });
+    await vault.modify(file, updated);
+  }
 
   return updatedApple;
 }

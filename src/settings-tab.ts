@@ -435,6 +435,18 @@ export class AppleBridgeSettingTab extends PluginSettingTab {
       );
 
     new Setting(genSection)
+      .setName("Dataview metadata")
+      .setDesc(
+        "Add frontmatter fields (apple_events, apple_reminders, apple_calendars, etc.) to daily notes for Dataview queries"
+      )
+      .addToggle((toggle) =>
+        toggle.setValue(this.plugin.settings.dataviewMetadata).onChange(async (value) => {
+          this.plugin.settings.dataviewMetadata = value;
+          await this.plugin.saveSettings();
+        })
+      );
+
+    new Setting(genSection)
       .setName("Restart setup wizard")
       .setDesc("Re-run the first-run onboarding to test permissions again")
       .addButton((btn) =>
