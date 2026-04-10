@@ -195,3 +195,383 @@
 .apple-bridge-ribbon-icon:hover {
   color: var(--interactive-accent);
 }
+
+/* =============================================
+   Status Dots
+   ============================================= */
+
+.apple-bridge-status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-left: 0.4em;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.apple-bridge-status-dot--ok {
+  background-color: var(--color-green);
+}
+
+.apple-bridge-status-dot--warning {
+  background-color: var(--color-yellow);
+}
+
+.apple-bridge-status-dot--error {
+  background-color: var(--color-red);
+}
+
+.apple-bridge-status-dot--disabled {
+  background-color: var(--text-faint);
+}
+
+.apple-bridge-status-dot--idle {
+  border: 2px solid var(--text-faint);
+  background-color: transparent;
+}
+
+/* =============================================
+   Error Banners
+   ============================================= */
+
+.apple-bridge-error-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3em;
+  margin: 0.6em 0 0.2em;
+  padding: 0.65em 0.9em;
+  border-radius: 6px;
+  border-left: 3px solid transparent;
+  font-size: var(--font-ui-smaller);
+}
+
+.apple-bridge-error-banner--permission {
+  background-color: rgba(var(--color-red-rgb, 220, 53, 69), 0.08);
+  border-left-color: var(--color-red);
+}
+
+.apple-bridge-error-banner--warning,
+.apple-bridge-error-banner--unavailable {
+  background-color: rgba(var(--color-yellow-rgb, 255, 204, 0), 0.1);
+  border-left-color: var(--color-yellow);
+}
+
+.apple-bridge-error-banner--general {
+  background-color: var(--background-modifier-error);
+  border-left-color: var(--color-red);
+}
+
+.apple-bridge-error-banner-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  font-weight: 600;
+  color: var(--text-normal);
+}
+
+.apple-bridge-error-banner-body {
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.apple-bridge-error-banner-actions {
+  display: flex;
+  gap: 0.5em;
+  margin-top: 0.35em;
+}
+
+.apple-bridge-error-banner-actions button {
+  font-size: var(--font-ui-smaller);
+  padding: 0.2em 0.7em;
+  height: auto;
+  line-height: 1.6;
+}
+
+/* Last-sync meta line */
+.apple-bridge-sync-meta {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-faint);
+  margin: 0.2em 0 0.6em;
+}
+
+/* =============================================
+   Empty States
+   ============================================= */
+
+.apple-bridge-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4em;
+  padding: 1.4em 1em;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.apple-bridge-empty-state-icon {
+  font-size: 28px;
+  line-height: 1;
+  opacity: 0.7;
+}
+
+.apple-bridge-empty-state-title {
+  font-weight: 600;
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+}
+
+.apple-bridge-empty-state-desc {
+  font-size: var(--font-ui-smaller);
+  max-width: 280px;
+  line-height: 1.4;
+}
+
+.apple-bridge-empty-state-action {
+  margin-top: 0.3em;
+  font-size: var(--font-ui-smaller);
+}
+
+/* =============================================
+   Onboarding Modal
+   ============================================= */
+
+.apple-bridge-onboarding-modal {
+  width: 480px;
+  max-width: 96vw;
+}
+
+.apple-bridge-onboarding-modal .modal-content {
+  padding: 1.5em 1.75em 1.25em;
+}
+
+/* Progress dots */
+.ob-onboard-progress {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 1.2em;
+}
+
+.ob-onboard-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--background-modifier-border);
+  transition: background-color 0.2s;
+}
+
+.ob-onboard-dot--active {
+  background-color: var(--interactive-accent);
+  transform: scale(1.25);
+}
+
+/* Hero block (welcome + summary) */
+.ob-onboard-hero {
+  text-align: center;
+  padding-bottom: 1em;
+}
+
+.ob-onboard-hero--done {
+  padding-top: 0.25em;
+}
+
+.ob-onboard-logo {
+  display: block;
+  font-size: 40px;
+  line-height: 1;
+  margin-bottom: 0.3em;
+}
+
+.ob-onboard-hero h2 {
+  margin: 0 0 0.4em;
+  font-size: var(--font-ui-large);
+  font-weight: 700;
+}
+
+.ob-onboard-hero p {
+  margin: 0 0 0.5em;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  line-height: 1.5;
+}
+
+.ob-onboard-subtitle {
+  font-size: var(--font-ui-smaller) !important;
+}
+
+/* Service step header */
+.ob-onboard-step-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7em;
+  margin-bottom: 0.7em;
+}
+
+.ob-onboard-step-icon {
+  font-size: 26px;
+  line-height: 1;
+  margin-top: 0.05em;
+}
+
+.ob-onboard-step-header h2 {
+  margin: 0;
+  font-size: var(--font-ui-large);
+  font-weight: 700;
+}
+
+.ob-onboard-step-meta {
+  margin: 0.1em 0 0;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-faint);
+}
+
+.ob-onboard-step-desc {
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  margin: 0 0 0.9em;
+  line-height: 1.5;
+}
+
+/* Permission hint box */
+.ob-onboard-hint {
+  padding: 0.65em 0.85em;
+  border-radius: 6px;
+  border: 1px solid var(--background-modifier-border);
+  background-color: var(--background-secondary);
+  font-size: var(--font-ui-smaller);
+  margin-bottom: 0.9em;
+  color: var(--text-muted);
+}
+
+.ob-onboard-hint strong {
+  display: block;
+  margin-bottom: 0.2em;
+  color: var(--text-normal);
+}
+
+.ob-onboard-hint p {
+  margin: 0;
+  line-height: 1.45;
+}
+
+/* Test row */
+.ob-onboard-test-row {
+  display: flex;
+  align-items: center;
+  gap: 0.8em;
+  margin-bottom: 1em;
+}
+
+.ob-onboard-test-btn {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.ob-onboard-test-status {
+  display: flex;
+  align-items: center;
+  gap: 0.3em;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+}
+
+.ob-onboard-test-status--ok {
+  color: var(--color-green);
+}
+
+.ob-onboard-test-status--permission,
+.ob-onboard-test-status--error {
+  color: var(--color-red);
+}
+
+.ob-onboard-test-status--unavailable {
+  color: var(--color-yellow);
+}
+
+/* Summary list */
+.ob-onboard-summary-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35em;
+  margin: 0.8em 0 1em;
+}
+
+.ob-onboard-summary-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  font-size: var(--font-ui-small);
+}
+
+.ob-onboard-summary-icon {
+  font-size: 16px;
+  width: 22px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.ob-onboard-summary-label {
+  flex: 1;
+  color: var(--text-normal);
+}
+
+.ob-onboard-summary-status {
+  font-size: var(--font-ui-smaller);
+  font-weight: 500;
+}
+
+.ob-onboard-summary-status--ok { color: var(--color-green); }
+.ob-onboard-summary-status--error { color: var(--color-red); }
+.ob-onboard-summary-status--skipped,
+.ob-onboard-summary-status--idle { color: var(--text-faint); }
+
+.ob-onboard-footer-hint {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-faint);
+  text-align: center;
+  margin-top: 0;
+}
+
+/* Footer / navigation */
+.ob-onboard-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 1.25em;
+  padding-top: 0.85em;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.ob-onboard-footer-left {
+  display: flex;
+  align-items: center;
+}
+
+.ob-onboard-footer-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+
+.ob-onboard-skip-btn {
+  color: var(--text-faint);
+  background: none;
+  border: none;
+  padding: 0.2em 0.4em;
+  cursor: pointer;
+  font-size: var(--font-ui-small);
+  box-shadow: none;
+}
+
+.ob-onboard-skip-btn:hover {
+  color: var(--text-muted);
+}
+
+/* Summary actions */
+.ob-onboard-actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.6em;
+  margin: 0.5em 0;
+}

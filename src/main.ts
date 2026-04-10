@@ -1,9 +1,19 @@
-import { App, Plugin, PluginSettingTab, Setting } from "obsidian";
+import { App, Notice, Plugin, PluginSettingTab, Setting } from "obsidian";
 import { syncCalendar } from "./calendar-sync";
 import { syncReminders } from "./reminders-sync";
 import { syncNotes } from "./notes-sync";
 import { syncContacts } from "./contacts-sync";
 import { CreateEventModal } from "./create-event-modal";
+import { OnboardingModal } from "./onboarding-modal";
+import {
+  type ServiceKey,
+  type SyncStatus,
+  loadStatusMap,
+  makeStatusError,
+  makeStatusSuccess,
+  relativeTime,
+  saveServiceStatus,
+} from "./sync-status";
 
 type ConflictResolution = "remote-wins" | "local-wins" | "most-recent";
 
@@ -76,6 +86,13 @@ export default class AppleBridgePlugin extends Plugin {
         )
       );
     }
+
+    // Show onboarding wizard on first load
+    if (!this.settings.hasCompletedOnboarding) {
+      window.setTimeout(() => {
+        new OnboardingModal(this.app, this).open();
+      }, 500);
+    }
   }
 
   onunload() {
@@ -91,12 +108,43 @@ export default class AppleBridgePlugin extends Plugin {
   }
 
   async syncAll() {
-    await Promise.all([
-      syncCalendar(this),
-      syncReminders(this),
-      syncNotes(this),
-      syncContacts(this),
+    const results = await Promise.allSettled([
+      this.runSync("calendar", () => syncCalendar(this)),
+      this.runSync("reminders", () => syncReminders(this)),
+      this.runSync("notes", () => syncNotes(this)),
+      this.runSync("contacts", () => syncContacts(this)),
     ]);
+    const failed = results.filter((r) => r.status === "rejected").length;
+    if (failed === 0) {
+      new Notice("Apple Bridge sync complete");
+    } else {
+      new Notice(`Apple Bridge sync finished with ${failed} error(s)`);
+    }
+  }
+
+  private async runSync(
+    service: ServiceKey,
+    fn: () => Promise<number | void>
+  ): Promise<void> {
+    try {
+      const count = await fn();
+      const status = makeStatusSuccess(typeof count === "number" ? count : 0);
+      await saveServiceStatus(
+        service,
+        status,
+        () => this.loadData(),
+        (d) => this.saveData(d)
+      );
+    } catch (err: unknown) {
+      const status = makeStatusError(err);
+      await saveServiceStatus(
+        service,
+        status,
+        () => this.loadData(),
+        (d) => this.saveData(d)
+      );
+      throw err;
+    }
   }
 }
 
@@ -108,10 +156,13 @@ class AppleBridgeSettingTab extends PluginSettingTab {
     this.plugin = plugin;
   }
 
-  display(): void {
+  async display(): Promise<void> {
     const { containerEl } = this;
     containerEl.empty();
     containerEl.addClass("apple-bridge-settings");
+
+    const statusMap = await loadStatusMap(() => this.plugin.loadData());
+    const retry = () => { this.plugin.syncAll(); void this.display(); };
 
     // --- Header banner ---
     const header = containerEl.createDiv({ cls: "apple-bridge-header" });
@@ -130,6 +181,10 @@ class AppleBridgeSettingTab extends PluginSettingTab {
       text: "\uD83D\uDCC5",
     });
     calTitle.createSpan({ text: "Calendar" });
+    appendStatusDot(calTitle, statusMap.calendar, this.plugin.settings.syncCalendar);
+
+    appendSyncMeta(calSection, statusMap.calendar);
+    appendErrorBanner(calSection, statusMap.calendar, retry);
 
     new Setting(calSection)
       .setName("Sync Calendar")
@@ -171,6 +226,10 @@ class AppleBridgeSettingTab extends PluginSettingTab {
           })
       );
 
+    appendEmptyState(calSection, statusMap.calendar, "calendar", () => {
+      new CreateEventModal(this.plugin.app, this.plugin).open();
+    });
+
     // --- Reminders section ---
     const remSection = containerEl.createDiv({ cls: "apple-bridge-section" });
     const remTitle = remSection.createDiv({ cls: "apple-bridge-section-title" });
@@ -179,6 +238,10 @@ class AppleBridgeSettingTab extends PluginSettingTab {
       text: "\u2705",
     });
     remTitle.createSpan({ text: "Reminders" });
+    appendStatusDot(remTitle, statusMap.reminders, this.plugin.settings.syncReminders);
+
+    appendSyncMeta(remSection, statusMap.reminders);
+    appendErrorBanner(remSection, statusMap.reminders, retry);
 
     new Setting(remSection)
       .setName("Sync Reminders")
@@ -220,6 +283,8 @@ class AppleBridgeSettingTab extends PluginSettingTab {
           })
       );
 
+    appendEmptyState(remSection, statusMap.reminders, "reminders", null);
+
     // --- Contacts section ---
     const conSection = containerEl.createDiv({ cls: "apple-bridge-section" });
     const conTitle = conSection.createDiv({ cls: "apple-bridge-section-title" });
@@ -228,6 +293,10 @@ class AppleBridgeSettingTab extends PluginSettingTab {
       text: "\uD83D\uDC64",
     });
     conTitle.createSpan({ text: "Contacts" });
+    appendStatusDot(conTitle, statusMap.contacts, this.plugin.settings.syncContacts);
+
+    appendSyncMeta(conSection, statusMap.contacts);
+    appendErrorBanner(conSection, statusMap.contacts, retry);
 
     new Setting(conSection)
       .setName("Sync Contacts")
@@ -254,6 +323,8 @@ class AppleBridgeSettingTab extends PluginSettingTab {
           })
       );
 
+    appendEmptyState(conSection, statusMap.contacts, "contacts", null);
+
     // --- Notes section ---
     const notSection = containerEl.createDiv({ cls: "apple-bridge-section" });
     const notTitle = notSection.createDiv({ cls: "apple-bridge-section-title" });
@@ -262,6 +333,10 @@ class AppleBridgeSettingTab extends PluginSettingTab {
       text: "\uD83D\uDCDD",
     });
     notTitle.createSpan({ text: "Notes" });
+    appendStatusDot(notTitle, statusMap.notes, this.plugin.settings.syncNotes);
+
+    appendSyncMeta(notSection, statusMap.notes);
+    appendErrorBanner(notSection, statusMap.notes, retry);
 
     new Setting(notSection)
       .setName("Sync Notes")
@@ -287,6 +362,8 @@ class AppleBridgeSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           })
       );
+
+    appendEmptyState(notSection, statusMap.notes, "notes", null);
 
     // --- General settings section ---
     const genSection = containerEl.createDiv({
@@ -328,5 +405,148 @@ class AppleBridgeSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           })
       );
+
+    new Setting(genSection)
+      .setName("Restart setup wizard")
+      .setDesc("Re-run the first-run onboarding to test permissions again")
+      .addButton((btn) =>
+        btn.setButtonText("Open Wizard").onClick(() => {
+          new OnboardingModal(this.plugin.app, this.plugin).open();
+        })
+      );
+  }
+}
+
+// ─── Settings tab helper renderers ────────────────────────────────────────
+
+function appendStatusDot(
+  titleEl: HTMLElement,
+  status: SyncStatus,
+  enabled: boolean
+) {
+  let cls = "apple-bridge-status-dot ";
+  if (!enabled) {
+    cls += "apple-bridge-status-dot--disabled";
+  } else if (status.lastSyncAt === null) {
+    cls += "apple-bridge-status-dot--idle";
+  } else if (status.lastError) {
+    cls += "apple-bridge-status-dot--error";
+  } else {
+    cls += "apple-bridge-status-dot--ok";
+  }
+  titleEl.createSpan({ cls });
+}
+
+function appendSyncMeta(container: HTMLElement, status: SyncStatus) {
+  if (!status.lastSyncAt) return;
+  const meta = container.createDiv({ cls: "apple-bridge-sync-meta" });
+  if (status.lastError) {
+    meta.textContent = `Last sync failed \u00B7 ${relativeTime(status.lastSyncAt)}`;
+  } else {
+    const count = status.itemCount ?? 0;
+    meta.textContent = `Last synced ${relativeTime(status.lastSyncAt)} \u00B7 ${count} item${count !== 1 ? "s" : ""}`;
+  }
+}
+
+function appendErrorBanner(
+  container: HTMLElement,
+  status: SyncStatus,
+  onRetry: () => void
+) {
+  if (!status.lastError) return;
+  const kind = status.errorKind ?? "general";
+
+  const banner = container.createDiv({
+    cls: `apple-bridge-error-banner apple-bridge-error-banner--${kind}`,
+  });
+
+  const titleEl = banner.createDiv({ cls: "apple-bridge-error-banner-title" });
+  titleEl.createSpan({
+    text:
+      kind === "permission"
+        ? "\u26D4 Permission denied"
+        : kind === "unavailable"
+        ? "\u26A0\uFE0F App unavailable"
+        : "\u274C Sync failed",
+  });
+
+  const body = banner.createDiv({ cls: "apple-bridge-error-banner-body" });
+  if (kind === "permission") {
+    body.textContent =
+      "Obsidian needs Automation access. Go to System Settings \u2192 Privacy & Security \u2192 Automation \u2192 Obsidian.";
+  } else if (kind === "unavailable") {
+    body.textContent =
+      "Could not reach the Apple app. Make sure it is installed and Automation is enabled in System Settings.";
+  } else {
+    body.textContent = status.lastError;
+  }
+
+  const actions = banner.createDiv({ cls: "apple-bridge-error-banner-actions" });
+
+  if (kind === "permission") {
+    const settingsBtn = actions.createEl("button", {
+      text: "Open System Settings",
+    });
+    settingsBtn.addEventListener("click", () => {
+      new Notice(
+        "System Settings \u2192 Privacy & Security \u2192 Automation \u2192 Obsidian"
+      );
+    });
+  }
+
+  const retryBtn = actions.createEl("button", { text: "Retry" });
+  retryBtn.addEventListener("click", onRetry);
+}
+
+const EMPTY_STATE_COPY: Record<
+  ServiceKey,
+  { icon: string; title: string; desc: string; actionLabel?: string }
+> = {
+  calendar: {
+    icon: "\uD83D\uDCC5",
+    title: "No events today",
+    desc: "Your calendar is clear. Enjoy the quiet!",
+    actionLabel: "+ Create Event",
+  },
+  reminders: {
+    icon: "\u2705",
+    title: "No reminders due today",
+    desc: "All clear! Reminders will appear here when synced.",
+  },
+  contacts: {
+    icon: "\uD83D\uDC64",
+    title: "No contacts imported yet",
+    desc: "Enable Contacts sync to import your Apple Contacts as Obsidian notes.",
+  },
+  notes: {
+    icon: "\uD83D\uDCDD",
+    title: "No notes found",
+    desc: "Apple Notes sync is enabled but no notes were returned. Try adding notes in the Apple Notes app.",
+  },
+};
+
+function appendEmptyState(
+  container: HTMLElement,
+  status: SyncStatus,
+  service: ServiceKey,
+  onAction: (() => void) | null
+) {
+  // Only show after a successful sync that returned 0 items
+  if (status.lastError !== null || status.itemCount === null || status.itemCount > 0) {
+    return;
+  }
+
+  const copy = EMPTY_STATE_COPY[service];
+  const el = container.createDiv({ cls: "apple-bridge-empty-state" });
+  el.createSpan({ cls: "apple-bridge-empty-state-icon", text: copy.icon });
+  el.createDiv({ cls: "apple-bridge-empty-state-title", text: copy.title });
+  el.createDiv({ cls: "apple-bridge-empty-state-desc", text: copy.desc });
+
+  if (copy.actionLabel && onAction) {
+    const btn = el.createEl("button", {
+      cls: "mod-cta apple-bridge-empty-state-action",
+      text: copy.actionLabel,
+    });
+    btn.addEventListener("click", onAction);
   }
 }
