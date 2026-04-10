@@ -4,6 +4,7 @@ import { syncReminders } from "./reminders-sync";
 import { syncNotes } from "./notes-sync";
 import { syncContacts } from "./contacts-sync";
 import { CreateEventModal } from "./create-event-modal";
+import { CreateReminderModal } from "./create-reminder-modal";
 import { OnboardingModal } from "./onboarding-modal";
 import {
   type ServiceKey,
@@ -70,6 +71,14 @@ export default class AppleBridgePlugin extends Plugin {
       name: "Create Calendar Event",
       callback: () => {
         new CreateEventModal(this.app, this).open();
+      },
+    });
+
+    this.addCommand({
+      id: "create-reminder",
+      name: "Create Reminder",
+      callback: () => {
+        new CreateReminderModal(this.app, this).open();
       },
     });
 
