@@ -1,5 +1,11 @@
 import { Notice, TFile, TFolder, Vault } from "obsidian";
 import { Contact, fetchContacts } from "./contacts-bridge";
+import {
+  checkContactsPermission,
+  PermissionDeniedError,
+  isPermissionDenied,
+  showPermissionDeniedNotice,
+} from "./permissions";
 import type AppleBridgePlugin from "./main";
 
 interface SyncedContact {
@@ -228,6 +234,17 @@ export async function syncContacts(
 ): Promise<void> {
   if (!plugin.settings.syncContacts) return;
 
+  // Pre-flight: verify macOS has granted Contacts access before doing any work.
+  try {
+    await checkContactsPermission();
+  } catch (err: unknown) {
+    if (err instanceof PermissionDeniedError) {
+      showPermissionDeniedNotice(err.appName);
+      return;
+    }
+    // Non-permission preflight failure — fall through and let the real call fail.
+  }
+
   const vault = plugin.app.vault;
 
   try {
@@ -288,6 +305,10 @@ export async function syncContacts(
       `Contacts synced: ${imported} imported, ${updated} updated, ${unchanged} unchanged`
     );
   } catch (err: unknown) {
+    if (err instanceof PermissionDeniedError || isPermissionDenied(err)) {
+      showPermissionDeniedNotice("Contacts");
+      return;
+    }
     const msg = err instanceof Error ? err.message : "Unknown error";
     new Notice(`Contacts sync failed: ${msg}`);
     throw err;

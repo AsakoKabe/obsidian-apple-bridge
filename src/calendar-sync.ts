@@ -5,6 +5,12 @@ import {
   createEvent,
   updateEvent,
 } from "./calendar-bridge";
+import {
+  checkCalendarPermission,
+  PermissionDeniedError,
+  isPermissionDenied,
+  showPermissionDeniedNotice,
+} from "./permissions";
 import type AppleBridgePlugin from "./main";
 
 interface SyncedEvent {
@@ -235,6 +241,17 @@ function parseTimeToDate(date: Date, timeStr: string): Date {
 export async function syncCalendar(plugin: AppleBridgePlugin): Promise<void> {
   if (!plugin.settings.syncCalendar) return;
 
+  // Pre-flight: verify macOS has granted Calendar access before doing any work.
+  try {
+    await checkCalendarPermission();
+  } catch (err: unknown) {
+    if (err instanceof PermissionDeniedError) {
+      showPermissionDeniedNotice(err.appName);
+      return;
+    }
+    // Non-permission preflight failure — fall through and let the real call fail.
+  }
+
   const today = new Date();
   const vault = plugin.app.vault;
 
@@ -382,6 +399,10 @@ export async function syncCalendar(plugin: AppleBridgePlugin): Promise<void> {
 
     new Notice(`Calendar synced: ${updatedApple.length} events`);
   } catch (err: unknown) {
+    if (err instanceof PermissionDeniedError || isPermissionDenied(err)) {
+      showPermissionDeniedNotice("Calendar");
+      return;
+    }
     const msg = err instanceof Error ? err.message : "Unknown error";
     new Notice(`Calendar sync failed: ${msg}`);
     throw err;

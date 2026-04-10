@@ -5,6 +5,12 @@ import {
   createReminder,
   updateReminder,
 } from "./reminders-bridge";
+import {
+  checkRemindersPermission,
+  PermissionDeniedError,
+  isPermissionDenied,
+  showPermissionDeniedNotice,
+} from "./permissions";
 import type AppleBridgePlugin from "./main";
 
 interface SyncedReminder {
@@ -214,6 +220,17 @@ export async function syncReminders(
 ): Promise<void> {
   if (!plugin.settings.syncReminders) return;
 
+  // Pre-flight: verify macOS has granted Reminders access before doing any work.
+  try {
+    await checkRemindersPermission();
+  } catch (err: unknown) {
+    if (err instanceof PermissionDeniedError) {
+      showPermissionDeniedNotice(err.appName);
+      return;
+    }
+    // Non-permission preflight failure — fall through and let the real call fail.
+  }
+
   const today = new Date();
   const vault = plugin.app.vault;
   const defaultList = plugin.settings.defaultReminderList ?? "Reminders";
@@ -344,6 +361,10 @@ export async function syncReminders(
 
     new Notice(`Reminders synced: ${mergedReminders.length} items`);
   } catch (err: unknown) {
+    if (err instanceof PermissionDeniedError || isPermissionDenied(err)) {
+      showPermissionDeniedNotice("Reminders");
+      return;
+    }
     const msg = err instanceof Error ? err.message : "Unknown error";
     new Notice(`Reminders sync failed: ${msg}`);
     throw err;

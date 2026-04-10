@@ -20,6 +20,7 @@ interface AppleBridgeSettings {
   remindersFolder: string;
   notesFolder: string;
   contactsFolder: string;
+  hasCompletedOnboarding: boolean;
 }
 
 const DEFAULT_SETTINGS: AppleBridgeSettings = {
@@ -35,6 +36,7 @@ const DEFAULT_SETTINGS: AppleBridgeSettings = {
   remindersFolder: "",
   notesFolder: "Apple Notes",
   contactsFolder: "People",
+  hasCompletedOnboarding: false,
 };
 
 export default class AppleBridgePlugin extends Plugin {

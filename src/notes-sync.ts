@@ -1,5 +1,11 @@
 import { Notice, TFile, TFolder, Vault } from "obsidian";
 import { AppleNote, fetchNotes, htmlToMarkdown } from "./notes-bridge";
+import {
+  checkNotesPermission,
+  PermissionDeniedError,
+  isPermissionDenied,
+  showPermissionDeniedNotice,
+} from "./permissions";
 import type AppleBridgePlugin from "./main";
 
 interface SyncedNote {
@@ -109,6 +115,17 @@ async function writeNoteToVault(
 export async function syncNotes(plugin: AppleBridgePlugin): Promise<void> {
   if (!plugin.settings.syncNotes) return;
 
+  // Pre-flight: verify macOS has granted Notes access before doing any work.
+  try {
+    await checkNotesPermission();
+  } catch (err: unknown) {
+    if (err instanceof PermissionDeniedError) {
+      showPermissionDeniedNotice(err.appName);
+      return;
+    }
+    // Non-permission preflight failure — fall through and let the real call fail.
+  }
+
   const vault = plugin.app.vault;
 
   try {
@@ -170,6 +187,10 @@ export async function syncNotes(plugin: AppleBridgePlugin): Promise<void> {
       `Notes synced: ${imported} imported, ${updated} updated, ${unchanged} unchanged`
     );
   } catch (err: unknown) {
+    if (err instanceof PermissionDeniedError || isPermissionDenied(err)) {
+      showPermissionDeniedNotice("Notes");
+      return;
+    }
     const msg = err instanceof Error ? err.message : "Unknown error";
     new Notice(`Notes sync failed: ${msg}`);
     throw err;
