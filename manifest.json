@@ -1,0 +1,11 @@
+{
+  "id": "obsidian-apple-bridge",
+  "name": "Apple Bridge",
+  "version": "0.1.0",
+  "minAppVersion": "1.0.0",
+  "description": "Connect your Obsidian vault with Apple apps: Reminders, Calendar, Contacts, and Notes.",
+  "author": "Your Name",
+  "authorUrl": "",
+  "fundingUrl": "",
+  "isDesktopOnly": true
+}
