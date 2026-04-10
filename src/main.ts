@@ -1,5 +1,6 @@
 import { App, Plugin, PluginSettingTab, Setting } from "obsidian";
 import { syncCalendar } from "./calendar-sync";
+import { syncReminders } from "./reminders-sync";
 
 interface AppleBridgeSettings {
   syncReminders: boolean;
@@ -8,6 +9,7 @@ interface AppleBridgeSettings {
   syncNotes: boolean;
   syncIntervalMinutes: number;
   defaultCalendarName: string;
+  defaultReminderList: string;
 }
 
 const DEFAULT_SETTINGS: AppleBridgeSettings = {
@@ -17,6 +19,7 @@ const DEFAULT_SETTINGS: AppleBridgeSettings = {
   syncNotes: false,
   syncIntervalMinutes: 15,
   defaultCalendarName: "Calendar",
+  defaultReminderList: "Reminders",
 };
 
 export default class AppleBridgePlugin extends Plugin {
@@ -62,7 +65,10 @@ export default class AppleBridgePlugin extends Plugin {
   }
 
   async syncAll() {
-    await syncCalendar(this);
+    await Promise.all([
+      syncCalendar(this),
+      syncReminders(this),
+    ]);
   }
 }
 
@@ -137,6 +143,19 @@ class AppleBridgeSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.defaultCalendarName)
           .onChange(async (value) => {
             this.plugin.settings.defaultCalendarName = value || "Calendar";
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Default Reminder List")
+      .setDesc("Apple Reminders list to create new reminders in")
+      .addText((text) =>
+        text
+          .setPlaceholder("Reminders")
+          .setValue(this.plugin.settings.defaultReminderList)
+          .onChange(async (value) => {
+            this.plugin.settings.defaultReminderList = value || "Reminders";
             await this.plugin.saveSettings();
           })
       );
