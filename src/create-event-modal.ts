@@ -74,82 +74,68 @@ export class CreateEventModal extends Modal {
     header.createSpan({ cls: "apple-bridge-modal-icon", text: "\uD83D\uDCC5" });
     header.createEl("h2", { text: "Create Calendar Event" });
 
-    new Setting(contentEl)
-      .setName("Title")
-      .addText((text) =>
-        text
-          .setPlaceholder("Event title")
-          .setValue(this.form.title)
-          .onChange((value) => {
-            this.form.title = value;
-          })
-      );
-
-    new Setting(contentEl)
-      .setName("Date")
-      .addText((text) =>
-        text
-          .setPlaceholder("YYYY-MM-DD")
-          .setValue(this.form.date)
-          .onChange((value) => {
-            this.form.date = value;
-          })
-      );
-
-    new Setting(contentEl)
-      .setName("All-day event")
-      .addToggle((toggle) =>
-        toggle.setValue(this.form.isAllDay).onChange((value) => {
-          this.form.isAllDay = value;
+    new Setting(contentEl).setName("Title").addText((text) =>
+      text
+        .setPlaceholder("Event title")
+        .setValue(this.form.title)
+        .onChange((value) => {
+          this.form.title = value;
         })
-      );
+    );
+
+    new Setting(contentEl).setName("Date").addText((text) =>
+      text
+        .setPlaceholder("YYYY-MM-DD")
+        .setValue(this.form.date)
+        .onChange((value) => {
+          this.form.date = value;
+        })
+    );
+
+    new Setting(contentEl).setName("All-day event").addToggle((toggle) =>
+      toggle.setValue(this.form.isAllDay).onChange((value) => {
+        this.form.isAllDay = value;
+      })
+    );
 
     // Time row — start and end side-by-side
     const timeRow = contentEl.createDiv({ cls: "apple-bridge-time-row" });
 
-    new Setting(timeRow)
-      .setName("Start time")
-      .addText((text) =>
-        text
-          .setPlaceholder("HH:MM")
-          .setValue(this.form.startTime)
-          .onChange((value) => {
-            this.form.startTime = value;
-          })
-      );
+    new Setting(timeRow).setName("Start time").addText((text) =>
+      text
+        .setPlaceholder("HH:MM")
+        .setValue(this.form.startTime)
+        .onChange((value) => {
+          this.form.startTime = value;
+        })
+    );
 
-    new Setting(timeRow)
-      .setName("End time")
-      .addText((text) =>
-        text
-          .setPlaceholder("HH:MM")
-          .setValue(this.form.endTime)
-          .onChange((value) => {
-            this.form.endTime = value;
-          })
-      );
+    new Setting(timeRow).setName("End time").addText((text) =>
+      text
+        .setPlaceholder("HH:MM")
+        .setValue(this.form.endTime)
+        .onChange((value) => {
+          this.form.endTime = value;
+        })
+    );
 
-    new Setting(contentEl)
-      .setName("Location")
-      .addText((text) =>
-        text
-          .setPlaceholder("Optional")
-          .setValue(this.form.location)
-          .onChange((value) => {
-            this.form.location = value;
-          })
-      );
+    new Setting(contentEl).setName("Location").addText((text) =>
+      text
+        .setPlaceholder("Optional")
+        .setValue(this.form.location)
+        .onChange((value) => {
+          this.form.location = value;
+        })
+    );
 
-    new Setting(contentEl)
-      .setName("Notes")
-      .addTextArea((area) =>
-        area
-          .setPlaceholder("Optional")
-          .setValue(this.form.notes)
-          .onChange((value) => {
-            this.form.notes = value;
-          })
-      );
+    new Setting(contentEl).setName("Notes").addTextArea((area) =>
+      area
+        .setPlaceholder("Optional")
+        .setValue(this.form.notes)
+        .onChange((value) => {
+          this.form.notes = value;
+        })
+    );
 
     // Action buttons
     const actions = contentEl.createDiv({ cls: "apple-bridge-modal-actions" });
@@ -187,8 +173,7 @@ export class CreateEventModal extends Modal {
     }
 
     try {
-      const calendarName =
-        plugin.settings.defaultCalendarName || "Calendar";
+      const calendarName = plugin.settings.defaultCalendarName || "Calendar";
 
       let startDate: Date;
       let endDate: Date;
@@ -202,17 +187,11 @@ export class CreateEventModal extends Modal {
       }
 
       // Create event in Apple Calendar
-      const eventId = await createEvent(
-        calendarName,
-        form.title.trim(),
-        startDate,
-        endDate,
-        {
-          isAllDay: form.isAllDay,
-          location: form.location || undefined,
-          notes: form.notes || undefined,
-        }
-      );
+      const eventId = await createEvent(calendarName, form.title.trim(), startDate, endDate, {
+        isAllDay: form.isAllDay,
+        location: form.location || undefined,
+        notes: form.notes || undefined,
+      });
 
       // Write event to daily note
       await this.writeEventToNote(eventId, startDate, endDate);
@@ -228,11 +207,7 @@ export class CreateEventModal extends Modal {
     }
   }
 
-  private async writeEventToNote(
-    eventId: string,
-    startDate: Date,
-    endDate: Date
-  ): Promise<void> {
+  private async writeEventToNote(eventId: string, _startDate: Date, _endDate: Date): Promise<void> {
     const { form, plugin } = this;
     const vault = plugin.app.vault;
     const calendarFolder = plugin.settings.calendarFolder ?? "";
@@ -268,9 +243,7 @@ export class CreateEventModal extends Modal {
     const lines = content.split("\n");
 
     // Build event line
-    const timeRange = form.isAllDay
-      ? "all-day"
-      : `${form.startTime} - ${form.endTime}`;
+    const timeRange = form.isAllDay ? "all-day" : `${form.startTime} - ${form.endTime}`;
     const loc = form.location ? ` \u{1F4CD} ${form.location}` : "";
     const eventLine = `- [ ] ${timeRange} ${form.title.trim()}${loc} [id:${eventId}]`;
 
@@ -285,25 +258,17 @@ export class CreateEventModal extends Modal {
         endIdx++;
       }
       // Insert before section end
-      const insertIdx =
-        endIdx > sectionIdx + 1 ? endIdx : sectionIdx + 1;
+      const insertIdx = endIdx > sectionIdx + 1 ? endIdx : sectionIdx + 1;
       lines.splice(insertIdx, 0, eventLine);
     } else {
       // Append new section
       lines.push("", sectionHeader, "", eventLine);
     }
 
-    await vault.modify(
-      file as Parameters<typeof vault.modify>[0],
-      lines.join("\n")
-    );
+    await vault.modify(file as Parameters<typeof vault.modify>[0], lines.join("\n"));
   }
 
-  private async updateSyncState(
-    eventId: string,
-    startDate: Date,
-    endDate: Date
-  ): Promise<void> {
+  private async updateSyncState(eventId: string, startDate: Date, endDate: Date): Promise<void> {
     const { form, plugin } = this;
     const data = (await plugin.loadData()) ?? {};
     const syncState = data["calendar-sync-state"] ?? { events: {} };

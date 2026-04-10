@@ -166,25 +166,17 @@ function buildContactBody(contact: Contact): string {
   return sections.join("\n");
 }
 
-async function loadSyncState(
-  plugin: AppleBridgePlugin
-): Promise<ContactsSyncState> {
+async function loadSyncState(plugin: AppleBridgePlugin): Promise<ContactsSyncState> {
   const data = await plugin.loadData();
   return data?.[SYNC_STATE_KEY] ?? { contacts: {} };
 }
 
-async function saveSyncState(
-  plugin: AppleBridgePlugin,
-  state: ContactsSyncState
-): Promise<void> {
+async function saveSyncState(plugin: AppleBridgePlugin, state: ContactsSyncState): Promise<void> {
   const data = (await plugin.loadData()) ?? {};
   await plugin.saveData({ ...data, [SYNC_STATE_KEY]: state });
 }
 
-function toSyncedContact(
-  contact: Contact,
-  vaultPath: string
-): SyncedContact {
+function toSyncedContact(contact: Contact, vaultPath: string): SyncedContact {
   return {
     appleId: contact.id,
     firstName: contact.firstName,
@@ -229,9 +221,7 @@ async function writeContactToVault(
   }
 }
 
-export async function syncContacts(
-  plugin: AppleBridgePlugin
-): Promise<void> {
+export async function syncContacts(plugin: AppleBridgePlugin): Promise<void> {
   if (!plugin.settings.syncContacts) return;
 
   // Pre-flight: verify macOS has granted Contacts access before doing any work.
@@ -301,9 +291,7 @@ export async function syncContacts(
     // 4. Persist sync state
     await saveSyncState(plugin, state);
 
-    new Notice(
-      `Contacts synced: ${imported} imported, ${updated} updated, ${unchanged} unchanged`
-    );
+    new Notice(`Contacts synced: ${imported} imported, ${updated} updated, ${unchanged} unchanged`);
   } catch (err: unknown) {
     if (err instanceof PermissionDeniedError || isPermissionDenied(err)) {
       showPermissionDeniedNotice("Contacts");

@@ -1,10 +1,5 @@
 import { Notice, TFile, TFolder, Vault } from "obsidian";
-import {
-  Reminder,
-  fetchReminders,
-  createReminder,
-  updateReminder,
-} from "./reminders-bridge";
+import { Reminder, fetchReminders, createReminder, updateReminder } from "./reminders-bridge";
 import {
   checkRemindersPermission,
   PermissionDeniedError,
@@ -68,15 +63,11 @@ function buildDateRange(today: Date, pastDays: number, futureDays: number): Date
 
 function formatReminderLine(r: Reminder): string {
   const check = r.isCompleted ? "x" : " ";
-  const due = r.dueDate
-    ? ` 📅 ${r.dueDate.slice(0, 10)}`
-    : "";
+  const due = r.dueDate ? ` 📅 ${r.dueDate.slice(0, 10)}` : "";
   return `- [${check}] ${r.title}${due} [rid:${r.id}]`;
 }
 
-function parseReminderLine(
-  line: string
-): {
+function parseReminderLine(line: string): {
   title: string;
   id: string | null;
   isCompleted: boolean;
@@ -92,17 +83,12 @@ function parseReminderLine(
   };
 }
 
-async function loadSyncState(
-  plugin: AppleBridgePlugin
-): Promise<ReminderSyncState> {
+async function loadSyncState(plugin: AppleBridgePlugin): Promise<ReminderSyncState> {
   const data = await plugin.loadData();
   return data?.[SYNC_STATE_KEY] ?? { reminders: {} };
 }
 
-async function saveSyncState(
-  plugin: AppleBridgePlugin,
-  state: ReminderSyncState
-): Promise<void> {
+async function saveSyncState(plugin: AppleBridgePlugin, state: ReminderSyncState): Promise<void> {
   const data = (await plugin.loadData()) ?? {};
   await plugin.saveData({ ...data, [SYNC_STATE_KEY]: state });
 }
@@ -118,10 +104,7 @@ function toSyncedReminder(r: Reminder): SyncedReminder {
   };
 }
 
-function hasReminderChanged(
-  remote: Reminder,
-  synced: SyncedReminder
-): boolean {
+function hasReminderChanged(remote: Reminder, synced: SyncedReminder): boolean {
   return (
     remote.title !== synced.title ||
     remote.isCompleted !== synced.isCompleted ||
@@ -164,9 +147,7 @@ function parseRemindersFromNote(content: string): Array<{
   line: string;
 }> {
   const lines = content.split("\n");
-  const sectionIdx = lines.findIndex(
-    (l) => l.trim() === REMINDERS_SECTION_HEADER
-  );
+  const sectionIdx = lines.findIndex((l) => l.trim() === REMINDERS_SECTION_HEADER);
   if (sectionIdx < 0) return [];
 
   const results: Array<{
@@ -195,9 +176,7 @@ async function writeRemindersToNote(
   const content = await vault.read(file);
   const lines = content.split("\n");
 
-  const sectionIdx = lines.findIndex(
-    (l) => l.trim() === REMINDERS_SECTION_HEADER
-  );
+  const sectionIdx = lines.findIndex((l) => l.trim() === REMINDERS_SECTION_HEADER);
 
   // Incomplete first, then completed
   const sorted = [...reminders].sort((a, b) => {
@@ -223,18 +202,8 @@ async function writeRemindersToNote(
       }
     }
 
-    const newSection = [
-      REMINDERS_SECTION_HEADER,
-      "",
-      ...reminderLines,
-      ...existingLocal,
-      "",
-    ];
-    const updated = [
-      ...lines.slice(0, sectionIdx),
-      ...newSection,
-      ...lines.slice(endIdx),
-    ];
+    const newSection = [REMINDERS_SECTION_HEADER, "", ...reminderLines, ...existingLocal, ""];
+    const updated = [...lines.slice(0, sectionIdx), ...newSection, ...lines.slice(endIdx)];
     await vault.modify(file, updated.join("\n"));
   } else {
     const section = `\n${REMINDERS_SECTION_HEADER}\n\n${reminderLines.join("\n")}\n`;
@@ -315,9 +284,7 @@ async function syncRemindersForDate(
         localChanges.delete(r.id);
       } else if (resolution === "most-recent") {
         const localSyncTime = prev ? new Date(prev.lastSyncedAt).getTime() : 0;
-        const remoteTime = r.dueDate
-          ? new Date(r.dueDate).getTime()
-          : Date.now();
+        const remoteTime = r.dueDate ? new Date(r.dueDate).getTime() : Date.now();
         if (remoteTime > localSyncTime) {
           state.reminders[r.id] = toSyncedReminder(r);
           localChanges.delete(r.id);
@@ -363,9 +330,7 @@ async function syncRemindersForDate(
   return mergedReminders;
 }
 
-export async function syncReminders(
-  plugin: AppleBridgePlugin
-): Promise<void> {
+export async function syncReminders(plugin: AppleBridgePlugin): Promise<void> {
   if (!plugin.settings.syncReminders) return;
 
   // Pre-flight: verify macOS has granted Reminders access before doing any work.
@@ -392,15 +357,12 @@ export async function syncReminders(
 
     // Group reminders by due date key. Reminders with no due date or a due date
     // outside the sync range are placed in today's bucket so they always appear.
-    const rangeKeys = new Set(
-      buildDateRange(today, pastDays, futureDays).map(toDateKey)
-    );
+    const rangeKeys = new Set(buildDateRange(today, pastDays, futureDays).map(toDateKey));
 
     const remindersByDate = new Map<string, Reminder[]>();
     for (const r of appleReminders) {
       const dueDateKey = r.dueDate ? toDateKey(new Date(r.dueDate)) : null;
-      const bucket =
-        dueDateKey && rangeKeys.has(dueDateKey) ? dueDateKey : todayKey;
+      const bucket = dueDateKey && rangeKeys.has(dueDateKey) ? dueDateKey : todayKey;
       const list = remindersByDate.get(bucket) ?? [];
       remindersByDate.set(bucket, [...list, r]);
     }

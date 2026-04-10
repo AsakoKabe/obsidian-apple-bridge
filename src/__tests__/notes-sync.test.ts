@@ -89,9 +89,7 @@ function createMockPlugin(
 
 beforeEach(() => {
   vi.mocked(fetchNotes).mockResolvedValue([]);
-  vi.mocked(htmlToMarkdown).mockImplementation((html: string) =>
-    html.replace(/<[^>]+>/g, "")
-  );
+  vi.mocked(htmlToMarkdown).mockImplementation((html: string) => html.replace(/<[^>]+>/g, ""));
 });
 
 afterEach(() => {
@@ -201,11 +199,7 @@ describe("syncNotes", () => {
       },
     };
 
-    const plugin = createMockPlugin(
-      { [vaultPath]: "old content" },
-      {},
-      prevState
-    );
+    const plugin = createMockPlugin({ [vaultPath]: "old content" }, {}, prevState);
     await syncNotes(plugin as never);
 
     // File exists → vault.modify should be called
@@ -280,9 +274,7 @@ describe("syncNotes", () => {
   });
 
   it("sanitizes note title to create safe file names", async () => {
-    vi.mocked(fetchNotes).mockResolvedValue([
-      makeNote({ title: "Note: With / Special * Chars" }),
-    ]);
+    vi.mocked(fetchNotes).mockResolvedValue([makeNote({ title: "Note: With / Special * Chars" })]);
     const plugin = createMockPlugin();
     await syncNotes(plugin as never);
 

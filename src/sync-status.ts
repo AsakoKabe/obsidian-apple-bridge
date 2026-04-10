@@ -52,9 +52,7 @@ export function makeStatusError(error: unknown): SyncStatus {
 }
 
 /** Loads the full status map from plugin data, filling missing keys with defaults. */
-export async function loadStatusMap(
-  loadData: () => Promise<unknown>
-): Promise<SyncStatusMap> {
+export async function loadStatusMap(loadData: () => Promise<unknown>): Promise<SyncStatusMap> {
   const data = (await loadData()) as Record<string, unknown> | null;
   const stored = (data?.[STATUS_KEY] ?? {}) as Partial<SyncStatusMap>;
   return {

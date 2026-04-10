@@ -165,8 +165,18 @@ describe("syncCalendar", () => {
 
   it("sorts events by start time in note", async () => {
     const events = [
-      makeEvent({ id: "evt-late", title: "Late Meeting", startDate: "2026-04-10T14:00:00.000Z", endDate: "2026-04-10T15:00:00.000Z" }),
-      makeEvent({ id: "evt-early", title: "Morning Stand-up", startDate: "2026-04-10T09:00:00.000Z", endDate: "2026-04-10T09:30:00.000Z" }),
+      makeEvent({
+        id: "evt-late",
+        title: "Late Meeting",
+        startDate: "2026-04-10T14:00:00.000Z",
+        endDate: "2026-04-10T15:00:00.000Z",
+      }),
+      makeEvent({
+        id: "evt-early",
+        title: "Morning Stand-up",
+        startDate: "2026-04-10T09:00:00.000Z",
+        endDate: "2026-04-10T09:30:00.000Z",
+      }),
     ];
     vi.mocked(fetchEvents).mockResolvedValue(events);
     const plugin = createMockPlugin();
@@ -273,9 +283,7 @@ describe("syncCalendar", () => {
     ].join("\n");
 
     // Apple returns different title
-    vi.mocked(fetchEvents).mockResolvedValue([
-      makeEvent({ id: "evt-1", title: "Remote Title" }),
-    ]);
+    vi.mocked(fetchEvents).mockResolvedValue([makeEvent({ id: "evt-1", title: "Remote Title" })]);
 
     const plugin = createMockPlugin(
       { [NOTE_PATH]: noteContent },
@@ -318,9 +326,7 @@ describe("syncCalendar", () => {
       "",
     ].join("\n");
 
-    vi.mocked(fetchEvents).mockResolvedValue([
-      makeEvent({ id: "evt-1", title: "Remote Title" }),
-    ]);
+    vi.mocked(fetchEvents).mockResolvedValue([makeEvent({ id: "evt-1", title: "Remote Title" })]);
 
     const plugin = createMockPlugin(
       { [NOTE_PATH]: noteContent },
@@ -330,7 +336,10 @@ describe("syncCalendar", () => {
     await syncCalendar(plugin as never);
 
     // local-wins: updateEvent should be called with local change
-    expect(updateEvent).toHaveBeenCalledWith("evt-1", expect.objectContaining({ title: "Local Title" }));
+    expect(updateEvent).toHaveBeenCalledWith(
+      "evt-1",
+      expect.objectContaining({ title: "Local Title" })
+    );
   });
 
   it("conflict most-recent: remote wins when remote is newer", async () => {
@@ -406,15 +415,16 @@ describe("syncCalendar", () => {
     ].join("\n");
 
     // Apple returns the ORIGINAL title (no remote change)
-    vi.mocked(fetchEvents).mockResolvedValue([
-      makeEvent({ id: "evt-1", title: "Original Title" }),
-    ]);
+    vi.mocked(fetchEvents).mockResolvedValue([makeEvent({ id: "evt-1", title: "Original Title" })]);
 
     const plugin = createMockPlugin({ [NOTE_PATH]: noteContent }, {}, prevState);
     await syncCalendar(plugin as never);
 
     // Local edit should be pushed to Apple
-    expect(updateEvent).toHaveBeenCalledWith("evt-1", expect.objectContaining({ title: "Edited Title" }));
+    expect(updateEvent).toHaveBeenCalledWith(
+      "evt-1",
+      expect.objectContaining({ title: "Edited Title" })
+    );
   });
 
   it("preserves local note lines without Apple id across writes", async () => {
@@ -468,10 +478,7 @@ describe("syncCalendar", () => {
   it("creates daily note in calendarFolder subdirectory", async () => {
     const plugin = createMockPlugin({}, { calendarFolder: "Daily" });
     await syncCalendar(plugin as never);
-    expect(plugin.app.vault.create).toHaveBeenCalledWith(
-      `Daily/${NOTE_PATH}`,
-      expect.any(String)
-    );
+    expect(plugin.app.vault.create).toHaveBeenCalledWith(`Daily/${NOTE_PATH}`, expect.any(String));
   });
 
   // ---------------------------------------------------------------------------
@@ -515,8 +522,12 @@ describe("syncCalendar", () => {
     expect(writtenPaths).toContain("2026-04-11.md");
 
     // Each note should only contain its own events
-    const todayWrite = modifyCalls.find((call) => (call[0] as TFile).path === "2026-04-10.md")![1] as string;
-    const tomorrowWrite = modifyCalls.find((call) => (call[0] as TFile).path === "2026-04-11.md")![1] as string;
+    const todayWrite = modifyCalls.find(
+      (call) => (call[0] as TFile).path === "2026-04-10.md"
+    )![1] as string;
+    const tomorrowWrite = modifyCalls.find(
+      (call) => (call[0] as TFile).path === "2026-04-11.md"
+    )![1] as string;
     expect(todayWrite).toContain("Today Meeting");
     expect(todayWrite).not.toContain("Tomorrow Meeting");
     expect(tomorrowWrite).toContain("Tomorrow Meeting");
@@ -525,9 +536,7 @@ describe("syncCalendar", () => {
 
   it("skips creating past/future notes when no events exist for those days", async () => {
     // Only today has events; range includes yesterday and tomorrow
-    vi.mocked(fetchEvents).mockResolvedValue([
-      makeEvent({ id: "evt-today", title: "Today Only" }),
-    ]);
+    vi.mocked(fetchEvents).mockResolvedValue([makeEvent({ id: "evt-today", title: "Today Only" })]);
 
     const plugin = createMockPlugin({}, { syncRangePastDays: 1, syncRangeFutureDays: 1 });
     await syncCalendar(plugin as never);
@@ -558,7 +567,9 @@ describe("syncCalendar", () => {
     await syncCalendar(plugin as never);
 
     const modifyCalls = vi.mocked(plugin.app.vault.modify).mock.calls;
-    const pastWrite = modifyCalls.find((call) => (call[0] as TFile).path === pastNote)?.[1] as string;
+    const pastWrite = modifyCalls.find(
+      (call) => (call[0] as TFile).path === pastNote
+    )?.[1] as string;
     expect(pastWrite).toContain("Past Meeting");
   });
 });

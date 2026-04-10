@@ -26,15 +26,8 @@ function sanitizeFileName(name: string): string {
   return name.replace(/[\\/:*?"<>|]/g, "-").trim();
 }
 
-function buildVaultPath(
-  notesRoot: string,
-  folderPath: string,
-  title: string
-): string {
-  const safeFolderPath = folderPath
-    .split("/")
-    .map(sanitizeFileName)
-    .join("/");
+function buildVaultPath(notesRoot: string, folderPath: string, title: string): string {
+  const safeFolderPath = folderPath.split("/").map(sanitizeFileName).join("/");
   const safeTitle = sanitizeFileName(title);
   return `${notesRoot}/${safeFolderPath}/${safeTitle}.md`;
 }
@@ -51,17 +44,12 @@ function buildNoteFrontmatter(note: AppleNote): string {
   ].join("\n");
 }
 
-async function loadSyncState(
-  plugin: AppleBridgePlugin
-): Promise<NotesSyncState> {
+async function loadSyncState(plugin: AppleBridgePlugin): Promise<NotesSyncState> {
   const data = await plugin.loadData();
   return data?.[SYNC_STATE_KEY] ?? { notes: {} };
 }
 
-async function saveSyncState(
-  plugin: AppleBridgePlugin,
-  state: NotesSyncState
-): Promise<void> {
+async function saveSyncState(plugin: AppleBridgePlugin, state: NotesSyncState): Promise<void> {
   const data = (await plugin.loadData()) ?? {};
   await plugin.saveData({ ...data, [SYNC_STATE_KEY]: state });
 }
@@ -92,11 +80,7 @@ async function ensureFolder(vault: Vault, folderPath: string): Promise<void> {
   }
 }
 
-async function writeNoteToVault(
-  vault: Vault,
-  vaultPath: string,
-  note: AppleNote
-): Promise<void> {
+async function writeNoteToVault(vault: Vault, vaultPath: string, note: AppleNote): Promise<void> {
   const folderPath = vaultPath.substring(0, vaultPath.lastIndexOf("/"));
   await ensureFolder(vault, folderPath);
 
@@ -183,9 +167,7 @@ export async function syncNotes(plugin: AppleBridgePlugin): Promise<void> {
     // 4. Persist sync state
     await saveSyncState(plugin, state);
 
-    new Notice(
-      `Notes synced: ${imported} imported, ${updated} updated, ${unchanged} unchanged`
-    );
+    new Notice(`Notes synced: ${imported} imported, ${updated} updated, ${unchanged} unchanged`);
   } catch (err: unknown) {
     if (err instanceof PermissionDeniedError || isPermissionDenied(err)) {
       showPermissionDeniedNotice("Notes");

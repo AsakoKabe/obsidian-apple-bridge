@@ -31,7 +31,10 @@ export class TFolder extends TAbstractFile {
 }
 
 export class Notice {
-  constructor(public message: string, _timeout?: number) {}
+  constructor(
+    public message: string,
+    _timeout?: number
+  ) {}
 }
 
 export class Vault {}
@@ -40,9 +43,19 @@ export class App {}
 export class PluginSettingTab {}
 export class Setting {
   constructor(_el: unknown) {}
-  setName(_name: string) { return this; }
-  setDesc(_desc: string) { return this; }
-  addToggle(_cb: unknown) { return this; }
-  addText(_cb: unknown) { return this; }
-  addDropdown(_cb: unknown) { return this; }
+  setName(_name: string) {
+    return this;
+  }
+  setDesc(_desc: string) {
+    return this;
+  }
+  addToggle(_cb: unknown) {
+    return this;
+  }
+  addText(_cb: unknown) {
+    return this;
+  }
+  addDropdown(_cb: unknown) {
+    return this;
+  }
 }

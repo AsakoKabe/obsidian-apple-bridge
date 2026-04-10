@@ -178,14 +178,9 @@ describe("syncReminders", () => {
   });
 
   it("pushes local-only reminders (no rid) to Apple Reminders", async () => {
-    const noteContent = [
-      `# ${FIXED_DATE}`,
-      "",
-      "## Reminders",
-      "",
-      "- [ ] Call dentist",
-      "",
-    ].join("\n");
+    const noteContent = [`# ${FIXED_DATE}`, "", "## Reminders", "", "- [ ] Call dentist", ""].join(
+      "\n"
+    );
 
     const plugin = createMockPlugin({ [NOTE_PATH]: noteContent });
     await syncReminders(plugin as never);
@@ -386,19 +381,11 @@ describe("syncReminders", () => {
   });
 
   it("uses defaultReminderList when creating local-only reminder", async () => {
-    const noteContent = [
-      `# ${FIXED_DATE}`,
-      "",
-      "## Reminders",
-      "",
-      "- [ ] New task",
-      "",
-    ].join("\n");
-
-    const plugin = createMockPlugin(
-      { [NOTE_PATH]: noteContent },
-      { defaultReminderList: "Work" }
+    const noteContent = [`# ${FIXED_DATE}`, "", "## Reminders", "", "- [ ] New task", ""].join(
+      "\n"
     );
+
+    const plugin = createMockPlugin({ [NOTE_PATH]: noteContent }, { defaultReminderList: "Work" });
     await syncReminders(plugin as never);
 
     expect(createReminder).toHaveBeenCalledWith("Work", "New task", expect.any(Object));
@@ -407,10 +394,7 @@ describe("syncReminders", () => {
   it("creates daily note in remindersFolder subdirectory", async () => {
     const plugin = createMockPlugin({}, { remindersFolder: "Daily" });
     await syncReminders(plugin as never);
-    expect(plugin.app.vault.create).toHaveBeenCalledWith(
-      `Daily/${NOTE_PATH}`,
-      expect.any(String)
-    );
+    expect(plugin.app.vault.create).toHaveBeenCalledWith(`Daily/${NOTE_PATH}`, expect.any(String));
   });
 
   // ---------------------------------------------------------------------------
@@ -430,13 +414,19 @@ describe("syncReminders", () => {
     const writtenPaths = modifyCalls.map((call) => (call[0] as TFile).path);
     expect(writtenPaths).toContain("2026-04-12.md");
 
-    const futureWrite = modifyCalls.find((call) => (call[0] as TFile).path === "2026-04-12.md")![1] as string;
+    const futureWrite = modifyCalls.find(
+      (call) => (call[0] as TFile).path === "2026-04-12.md"
+    )![1] as string;
     expect(futureWrite).toContain("Future Task");
   });
 
   it("writes reminder with due date outside range to today's note", async () => {
     vi.mocked(fetchReminders).mockResolvedValue([
-      makeReminder({ id: "rem-far", title: "Far Future Task", dueDate: "2026-04-20T00:00:00.000Z" }),
+      makeReminder({
+        id: "rem-far",
+        title: "Far Future Task",
+        dueDate: "2026-04-20T00:00:00.000Z",
+      }),
     ]);
 
     // Range only covers today (range 0/0), April 20 is outside
@@ -449,7 +439,9 @@ describe("syncReminders", () => {
     expect(writtenPaths).toContain(NOTE_PATH);
     expect(writtenPaths).not.toContain("2026-04-20.md");
 
-    const todayWrite = modifyCalls.find((call) => (call[0] as TFile).path === NOTE_PATH)![1] as string;
+    const todayWrite = modifyCalls.find(
+      (call) => (call[0] as TFile).path === NOTE_PATH
+    )![1] as string;
     expect(todayWrite).toContain("Far Future Task");
   });
 
@@ -462,7 +454,9 @@ describe("syncReminders", () => {
     await syncReminders(plugin as never);
 
     const modifyCalls = vi.mocked(plugin.app.vault.modify).mock.calls;
-    const todayWrite = modifyCalls.find((call) => (call[0] as TFile).path === NOTE_PATH)?.[1] as string;
+    const todayWrite = modifyCalls.find(
+      (call) => (call[0] as TFile).path === NOTE_PATH
+    )?.[1] as string;
     expect(todayWrite).toContain("No Due Date Task");
   });
 

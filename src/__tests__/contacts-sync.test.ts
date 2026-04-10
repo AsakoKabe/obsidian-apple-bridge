@@ -385,7 +385,14 @@ describe("syncContacts", () => {
     vi.mocked(fetchContacts).mockResolvedValue([
       makeContact({
         addresses: [
-          { label: "home", street: "123 Main St", city: "Springfield", state: "IL", postalCode: "62701", country: "US" },
+          {
+            label: "home",
+            street: "123 Main St",
+            city: "Springfield",
+            state: "IL",
+            postalCode: "62701",
+            country: "US",
+          },
         ],
       }),
     ]);
@@ -398,9 +405,7 @@ describe("syncContacts", () => {
   });
 
   it("writes note text in body", async () => {
-    vi.mocked(fetchContacts).mockResolvedValue([
-      makeContact({ note: "Met at conference 2025" }),
-    ]);
+    vi.mocked(fetchContacts).mockResolvedValue([makeContact({ note: "Met at conference 2025" })]);
     const plugin = createMockPlugin();
     await syncContacts(plugin as never);
 

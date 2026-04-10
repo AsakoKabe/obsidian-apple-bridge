@@ -150,7 +150,8 @@ describe("htmlToMarkdown", () => {
   });
 
   it("converts a simple table", () => {
-    const html = "<table><tr><th>Name</th><th>Age</th></tr><tr><td>Alice</td><td>30</td></tr></table>";
+    const html =
+      "<table><tr><th>Name</th><th>Age</th></tr><tr><td>Alice</td><td>30</td></tr></table>";
     const result = htmlToMarkdown(html);
     expect(result).toContain("Name");
     expect(result).toContain("Age");

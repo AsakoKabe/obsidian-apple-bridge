@@ -46,8 +46,7 @@ function runJxa(script: string): Promise<string> {
   });
 }
 
-const safeStr = (s: string): string =>
-  s.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+const safeStr = (s: string): string => s.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 
 export async function listGroups(): Promise<ContactGroup[]> {
   const script = `
@@ -63,9 +62,7 @@ export async function listGroups(): Promise<ContactGroup[]> {
   return JSON.parse(raw) as ContactGroup[];
 }
 
-export async function fetchContacts(
-  groupName?: string
-): Promise<Contact[]> {
+export async function fetchContacts(groupName?: string): Promise<Contact[]> {
   const contactsSource = groupName
     ? `const group = app.groups.whose({ name: "${safeStr(groupName)}" })[0];
        const people = group.people();`
@@ -124,9 +121,7 @@ export async function fetchContacts(
   return JSON.parse(raw) as Contact[];
 }
 
-export async function fetchContactById(
-  contactId: string
-): Promise<Contact | null> {
+export async function fetchContactById(contactId: string): Promise<Contact | null> {
   const script = `
     const app = Application("Contacts");
     const matches = app.people.whose({ id: "${safeStr(contactId)}" })();
@@ -221,21 +216,19 @@ export async function createContact(
 
 export async function updateContact(
   contactId: string,
-  updates: Partial<Pick<Contact, "firstName" | "lastName" | "nickname" | "organization" | "jobTitle" | "note">>
+  updates: Partial<
+    Pick<Contact, "firstName" | "lastName" | "nickname" | "organization" | "jobTitle" | "note">
+  >
 ): Promise<void> {
   const setParts: string[] = [];
   if (updates.firstName !== undefined)
     setParts.push(`p.firstName = "${safeStr(updates.firstName)}";`);
-  if (updates.lastName !== undefined)
-    setParts.push(`p.lastName = "${safeStr(updates.lastName)}";`);
-  if (updates.nickname !== undefined)
-    setParts.push(`p.nickname = "${safeStr(updates.nickname)}";`);
+  if (updates.lastName !== undefined) setParts.push(`p.lastName = "${safeStr(updates.lastName)}";`);
+  if (updates.nickname !== undefined) setParts.push(`p.nickname = "${safeStr(updates.nickname)}";`);
   if (updates.organization !== undefined)
     setParts.push(`p.organization = "${safeStr(updates.organization)}";`);
-  if (updates.jobTitle !== undefined)
-    setParts.push(`p.jobTitle = "${safeStr(updates.jobTitle)}";`);
-  if (updates.note !== undefined)
-    setParts.push(`p.note = "${safeStr(updates.note)}";`);
+  if (updates.jobTitle !== undefined) setParts.push(`p.jobTitle = "${safeStr(updates.jobTitle)}";`);
+  if (updates.note !== undefined) setParts.push(`p.note = "${safeStr(updates.note)}";`);
 
   if (setParts.length === 0) return;
 

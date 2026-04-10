@@ -145,18 +145,12 @@ export function htmlToMarkdown(html: string): string {
   md = md.replace(/<a[^>]+href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi, "[$2]($1)");
 
   // Images — extract as attachment references
-  md = md.replace(
-    /<img[^>]+src="([^"]*)"[^>]*alt="([^"]*)"[^>]*\/?>/gi,
-    "![$2]($1)"
-  );
+  md = md.replace(/<img[^>]+src="([^"]*)"[^>]*alt="([^"]*)"[^>]*\/?>/gi, "![$2]($1)");
   md = md.replace(/<img[^>]+src="([^"]*)"[^>]*\/?>/gi, "![]($1)");
 
   // Apple Notes checklists: <ul class="...checklist..."><li>
   // Checked items have a specific attribute or class
-  md = md.replace(
-    /<li[^>]*class="[^"]*checked[^"]*"[^>]*>([\s\S]*?)<\/li>/gi,
-    "- [x] $1\n"
-  );
+  md = md.replace(/<li[^>]*class="[^"]*checked[^"]*"[^>]*>([\s\S]*?)<\/li>/gi, "- [x] $1\n");
 
   // Unordered lists
   md = md.replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, "- $1\n");

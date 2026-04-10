@@ -1,10 +1,5 @@
 import { Notice, TFile, TFolder, Vault } from "obsidian";
-import {
-  CalendarEvent,
-  fetchEvents,
-  createEvent,
-  updateEvent,
-} from "./calendar-bridge";
+import { CalendarEvent, fetchEvents, createEvent, updateEvent } from "./calendar-bridge";
 import {
   checkCalendarPermission,
   PermissionDeniedError,
@@ -105,18 +100,12 @@ async function loadSyncState(plugin: AppleBridgePlugin): Promise<SyncState> {
   return data?.[SYNC_STATE_KEY] ?? { events: {} };
 }
 
-async function saveSyncState(
-  plugin: AppleBridgePlugin,
-  state: SyncState
-): Promise<void> {
+async function saveSyncState(plugin: AppleBridgePlugin, state: SyncState): Promise<void> {
   const data = (await plugin.loadData()) ?? {};
   await plugin.saveData({ ...data, [SYNC_STATE_KEY]: state });
 }
 
-function hasEventChanged(
-  remote: CalendarEvent,
-  synced: SyncedEvent
-): boolean {
+function hasEventChanged(remote: CalendarEvent, synced: SyncedEvent): boolean {
   return (
     remote.title !== synced.title ||
     remote.startDate !== synced.startDate ||
@@ -201,18 +190,8 @@ async function writeEventsToNote(
       }
     }
 
-    const newSection = [
-      EVENT_SECTION_HEADER,
-      "",
-      ...eventLines,
-      ...existingLocal,
-      "",
-    ];
-    const updated = [
-      ...lines.slice(0, sectionIdx),
-      ...newSection,
-      ...lines.slice(endIdx),
-    ];
+    const newSection = [EVENT_SECTION_HEADER, "", ...eventLines, ...existingLocal, ""];
+    const updated = [...lines.slice(0, sectionIdx), ...newSection, ...lines.slice(endIdx)];
     await vault.modify(file, updated.join("\n"));
   } else {
     // Append section

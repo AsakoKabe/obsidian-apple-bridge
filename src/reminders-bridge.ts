@@ -33,8 +33,7 @@ function runJxa(script: string): Promise<string> {
   });
 }
 
-const safeStr = (s: string): string =>
-  s.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+const safeStr = (s: string): string => s.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 
 export async function listReminderLists(): Promise<ReminderList[]> {
   const script = `
@@ -58,9 +57,7 @@ export async function fetchReminders(
     ? `const lists = [app.lists.whose({ name: "${safeStr(listName)}" })[0]];`
     : `const lists = app.lists();`;
 
-  const completedFilter = includeCompleted
-    ? ""
-    : `if (r.completed()) continue;`;
+  const completedFilter = includeCompleted ? "" : `if (r.completed()) continue;`;
 
   const script = `
     const app = Application("Reminders");
@@ -103,11 +100,8 @@ export async function createReminder(
   const dueLine = options.dueDate
     ? `r.dueDate = new Date("${options.dueDate.toISOString()}");`
     : "";
-  const notesLine = options.notes
-    ? `r.body = "${safeStr(options.notes)}";`
-    : "";
-  const priorityLine =
-    options.priority !== undefined ? `r.priority = ${options.priority};` : "";
+  const notesLine = options.notes ? `r.body = "${safeStr(options.notes)}";` : "";
+  const priorityLine = options.priority !== undefined ? `r.priority = ${options.priority};` : "";
 
   const script = `
     const app = Application("Reminders");
@@ -130,21 +124,15 @@ export async function updateReminder(
   updates: Partial<Pick<Reminder, "title" | "isCompleted" | "dueDate" | "notes" | "priority">>
 ): Promise<void> {
   const setParts: string[] = [];
-  if (updates.title !== undefined)
-    setParts.push(`r.name = "${safeStr(updates.title)}";`);
-  if (updates.isCompleted !== undefined)
-    setParts.push(`r.completed = ${updates.isCompleted};`);
+  if (updates.title !== undefined) setParts.push(`r.name = "${safeStr(updates.title)}";`);
+  if (updates.isCompleted !== undefined) setParts.push(`r.completed = ${updates.isCompleted};`);
   if (updates.dueDate !== undefined) {
     setParts.push(
-      updates.dueDate
-        ? `r.dueDate = new Date("${updates.dueDate}");`
-        : `r.dueDate = null;`
+      updates.dueDate ? `r.dueDate = new Date("${updates.dueDate}");` : `r.dueDate = null;`
     );
   }
-  if (updates.notes !== undefined)
-    setParts.push(`r.body = "${safeStr(updates.notes)}";`);
-  if (updates.priority !== undefined)
-    setParts.push(`r.priority = ${updates.priority};`);
+  if (updates.notes !== undefined) setParts.push(`r.body = "${safeStr(updates.notes)}";`);
+  if (updates.priority !== undefined) setParts.push(`r.priority = ${updates.priority};`);
 
   if (setParts.length === 0) return;
 

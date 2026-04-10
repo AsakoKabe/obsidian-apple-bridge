@@ -50,10 +50,7 @@ export async function listCalendars(): Promise<CalendarInfo[]> {
   return JSON.parse(raw) as CalendarInfo[];
 }
 
-export async function fetchEvents(
-  startDate: Date,
-  endDate: Date
-): Promise<CalendarEvent[]> {
+export async function fetchEvents(startDate: Date, endDate: Date): Promise<CalendarEvent[]> {
   const startIso = startDate.toISOString();
   const endIso = endDate.toISOString();
 
@@ -117,14 +114,18 @@ export async function createEvent(
 
 export async function updateEvent(
   eventId: string,
-  updates: Partial<Pick<CalendarEvent, "title" | "startDate" | "endDate" | "location" | "notes" | "isAllDay">>
+  updates: Partial<
+    Pick<CalendarEvent, "title" | "startDate" | "endDate" | "location" | "notes" | "isAllDay">
+  >
 ): Promise<void> {
   const safeStr = (s: string) => s.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
   const setParts: string[] = [];
   if (updates.title !== undefined) setParts.push(`ev.summary = "${safeStr(updates.title)}";`);
-  if (updates.startDate !== undefined) setParts.push(`ev.startDate = new Date("${updates.startDate}");`);
+  if (updates.startDate !== undefined)
+    setParts.push(`ev.startDate = new Date("${updates.startDate}");`);
   if (updates.endDate !== undefined) setParts.push(`ev.endDate = new Date("${updates.endDate}");`);
-  if (updates.location !== undefined) setParts.push(`ev.location = "${safeStr(updates.location)}";`);
+  if (updates.location !== undefined)
+    setParts.push(`ev.location = "${safeStr(updates.location)}";`);
   if (updates.notes !== undefined) setParts.push(`ev.description = "${safeStr(updates.notes)}";`);
   if (updates.isAllDay !== undefined) setParts.push(`ev.alldayEvent = ${updates.isAllDay};`);
 

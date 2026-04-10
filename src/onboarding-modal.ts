@@ -51,8 +51,7 @@ const SERVICE_STEPS: ServiceStep[] = [
     key: "contacts",
     icon: "\uD83D\uDC64",
     label: "Contacts",
-    description:
-      "Create one note per Apple Contact. Apple Contacts needs Automation permission.",
+    description: "Create one note per Apple Contact. Apple Contacts needs Automation permission.",
     testFn: async () => {
       await fetchContacts();
     },
@@ -164,11 +163,7 @@ export class OnboardingModal extends Modal {
         const msg = err instanceof Error ? err.message : String(err);
         const kind = classifyError(msg);
         const state: TestState =
-          kind === "permission"
-            ? "permission"
-            : kind === "unavailable"
-            ? "unavailable"
-            : "error";
+          kind === "permission" ? "permission" : kind === "unavailable" ? "unavailable" : "error";
         this.testStates.set(step.key, state);
         this.updateTestStatusEl(statusEl, state, msg);
       } finally {
@@ -179,8 +174,7 @@ export class OnboardingModal extends Modal {
     // Footer
     this.renderFooter({
       showBack: true,
-      nextLabel:
-        this.step < SERVICE_STEPS.length ? "Continue \u2192" : "Finish \u2192",
+      nextLabel: this.step < SERVICE_STEPS.length ? "Continue \u2192" : "Finish \u2192",
       showSkip: true,
       onSkip: () => {
         this.skipped.add(step.key);
@@ -190,11 +184,7 @@ export class OnboardingModal extends Modal {
     });
   }
 
-  private updateTestStatusEl(
-    el: HTMLElement,
-    state: TestState,
-    errorMsg?: string
-  ) {
+  private updateTestStatusEl(el: HTMLElement, state: TestState, errorMsg?: string) {
     el.empty();
     el.className = `ob-onboard-test-status ob-onboard-test-status--${state}`;
 
@@ -275,7 +265,9 @@ export class OnboardingModal extends Modal {
     const settingsBtn = actions.createEl("button", { text: "Open Settings" });
     settingsBtn.addEventListener("click", () => {
       this.close();
-      (this.app as App & { setting?: { open: () => void; openTabById: (id: string) => void } }).setting?.openTabById("apple-bridge");
+      (
+        this.app as App & { setting?: { open: () => void; openTabById: (id: string) => void } }
+      ).setting?.openTabById("apple-bridge");
     });
 
     const syncBtn = actions.createEl("button", {

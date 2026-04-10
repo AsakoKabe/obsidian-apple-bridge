@@ -93,10 +93,7 @@ export default class AppleBridgePlugin extends Plugin {
 
     if (this.settings.syncIntervalMinutes > 0) {
       this.registerInterval(
-        window.setInterval(
-          () => this.syncAll(),
-          this.settings.syncIntervalMinutes * 60 * 1000
-        )
+        window.setInterval(() => this.syncAll(), this.settings.syncIntervalMinutes * 60 * 1000)
       );
     }
 
@@ -135,10 +132,7 @@ export default class AppleBridgePlugin extends Plugin {
     }
   }
 
-  private async runSync(
-    service: ServiceKey,
-    fn: () => Promise<number | void>
-  ): Promise<void> {
+  private async runSync(service: ServiceKey, fn: () => Promise<number | void>): Promise<void> {
     try {
       const count = await fn();
       const status = makeStatusSuccess(typeof count === "number" ? count : 0);
@@ -175,7 +169,10 @@ class AppleBridgeSettingTab extends PluginSettingTab {
     containerEl.addClass("apple-bridge-settings");
 
     const statusMap = await loadStatusMap(() => this.plugin.loadData());
-    const retry = () => { this.plugin.syncAll(); void this.display(); };
+    const retry = () => {
+      this.plugin.syncAll();
+      void this.display();
+    };
 
     // --- Header banner ---
     const header = containerEl.createDiv({ cls: "apple-bridge-header" });
@@ -203,12 +200,10 @@ class AppleBridgeSettingTab extends PluginSettingTab {
       .setName("Sync Calendar")
       .setDesc("Sync Apple Calendar events to your vault")
       .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.syncCalendar)
-          .onChange(async (value) => {
-            this.plugin.settings.syncCalendar = value;
-            await this.plugin.saveSettings();
-          })
+        toggle.setValue(this.plugin.settings.syncCalendar).onChange(async (value) => {
+          this.plugin.settings.syncCalendar = value;
+          await this.plugin.saveSettings();
+        })
       );
 
     new Setting(calSection)
@@ -226,9 +221,7 @@ class AppleBridgeSettingTab extends PluginSettingTab {
 
     new Setting(calSection)
       .setName("Vault folder")
-      .setDesc(
-        "Vault folder for daily notes with calendar events (empty = vault root)"
-      )
+      .setDesc("Vault folder for daily notes with calendar events (empty = vault root)")
       .addText((text) =>
         text
           .setPlaceholder("e.g. Calendar")
@@ -260,12 +253,10 @@ class AppleBridgeSettingTab extends PluginSettingTab {
       .setName("Sync Reminders")
       .setDesc("Sync Apple Reminders to your vault")
       .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.syncReminders)
-          .onChange(async (value) => {
-            this.plugin.settings.syncReminders = value;
-            await this.plugin.saveSettings();
-          })
+        toggle.setValue(this.plugin.settings.syncReminders).onChange(async (value) => {
+          this.plugin.settings.syncReminders = value;
+          await this.plugin.saveSettings();
+        })
       );
 
     new Setting(remSection)
@@ -283,9 +274,7 @@ class AppleBridgeSettingTab extends PluginSettingTab {
 
     new Setting(remSection)
       .setName("Vault folder")
-      .setDesc(
-        "Vault folder for daily notes with reminders (empty = vault root)"
-      )
+      .setDesc("Vault folder for daily notes with reminders (empty = vault root)")
       .addText((text) =>
         text
           .setPlaceholder("e.g. Reminders")
@@ -315,12 +304,10 @@ class AppleBridgeSettingTab extends PluginSettingTab {
       .setName("Sync Contacts")
       .setDesc("Import Apple Contacts as notes")
       .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.syncContacts)
-          .onChange(async (value) => {
-            this.plugin.settings.syncContacts = value;
-            await this.plugin.saveSettings();
-          })
+        toggle.setValue(this.plugin.settings.syncContacts).onChange(async (value) => {
+          this.plugin.settings.syncContacts = value;
+          await this.plugin.saveSettings();
+        })
       );
 
     new Setting(conSection)
@@ -355,12 +342,10 @@ class AppleBridgeSettingTab extends PluginSettingTab {
       .setName("Sync Notes")
       .setDesc("Import Apple Notes into your vault")
       .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.syncNotes)
-          .onChange(async (value) => {
-            this.plugin.settings.syncNotes = value;
-            await this.plugin.saveSettings();
-          })
+        toggle.setValue(this.plugin.settings.syncNotes).onChange(async (value) => {
+          this.plugin.settings.syncNotes = value;
+          await this.plugin.saveSettings();
+        })
       );
 
     new Setting(notSection)
@@ -435,9 +420,7 @@ class AppleBridgeSettingTab extends PluginSettingTab {
 
     new Setting(genSection)
       .setName("Conflict resolution")
-      .setDesc(
-        "How to resolve conflicts when both local and remote change between syncs"
-      )
+      .setDesc("How to resolve conflicts when both local and remote change between syncs")
       .addDropdown((dropdown) =>
         dropdown
           .addOption("remote-wins", "Remote wins (Apple overrides local)")
@@ -445,8 +428,7 @@ class AppleBridgeSettingTab extends PluginSettingTab {
           .addOption("most-recent", "Most recent change wins")
           .setValue(this.plugin.settings.conflictResolution)
           .onChange(async (value) => {
-            this.plugin.settings.conflictResolution =
-              value as ConflictResolution;
+            this.plugin.settings.conflictResolution = value as ConflictResolution;
             await this.plugin.saveSettings();
           })
       );
@@ -464,11 +446,7 @@ class AppleBridgeSettingTab extends PluginSettingTab {
 
 // ─── Settings tab helper renderers ────────────────────────────────────────
 
-function appendStatusDot(
-  titleEl: HTMLElement,
-  status: SyncStatus,
-  enabled: boolean
-) {
+function appendStatusDot(titleEl: HTMLElement, status: SyncStatus, enabled: boolean) {
   let cls = "apple-bridge-status-dot ";
   if (!enabled) {
     cls += "apple-bridge-status-dot--disabled";
@@ -493,11 +471,7 @@ function appendSyncMeta(container: HTMLElement, status: SyncStatus) {
   }
 }
 
-function appendErrorBanner(
-  container: HTMLElement,
-  status: SyncStatus,
-  onRetry: () => void
-) {
+function appendErrorBanner(container: HTMLElement, status: SyncStatus, onRetry: () => void) {
   if (!status.lastError) return;
   const kind = status.errorKind ?? "general";
 
@@ -511,8 +485,8 @@ function appendErrorBanner(
       kind === "permission"
         ? "\u26D4 Permission denied"
         : kind === "unavailable"
-        ? "\u26A0\uFE0F App unavailable"
-        : "\u274C Sync failed",
+          ? "\u26A0\uFE0F App unavailable"
+          : "\u274C Sync failed",
   });
 
   const body = banner.createDiv({ cls: "apple-bridge-error-banner-body" });
@@ -533,9 +507,7 @@ function appendErrorBanner(
       text: "Open System Settings",
     });
     settingsBtn.addEventListener("click", () => {
-      new Notice(
-        "System Settings \u2192 Privacy & Security \u2192 Automation \u2192 Obsidian"
-      );
+      new Notice("System Settings \u2192 Privacy & Security \u2192 Automation \u2192 Obsidian");
     });
   }
 

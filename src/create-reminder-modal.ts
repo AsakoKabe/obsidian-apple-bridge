@@ -51,77 +51,65 @@ export class CreateReminderModal extends Modal {
     header.createSpan({ cls: "apple-bridge-modal-icon", text: "\u2705" });
     header.createEl("h2", { text: "Create Reminder" });
 
-    new Setting(contentEl)
-      .setName("Title")
-      .addText((text) =>
-        text
-          .setPlaceholder("Reminder title")
-          .setValue(this.form.title)
-          .onChange((value) => {
-            this.form.title = value;
-          })
-      );
+    new Setting(contentEl).setName("Title").addText((text) =>
+      text
+        .setPlaceholder("Reminder title")
+        .setValue(this.form.title)
+        .onChange((value) => {
+          this.form.title = value;
+        })
+    );
 
-    new Setting(contentEl)
-      .setName("Due date")
-      .addText((text) =>
-        text
-          .setPlaceholder("YYYY-MM-DD")
-          .setValue(this.form.dueDate)
-          .onChange((value) => {
-            this.form.dueDate = value;
-          })
-      );
+    new Setting(contentEl).setName("Due date").addText((text) =>
+      text
+        .setPlaceholder("YYYY-MM-DD")
+        .setValue(this.form.dueDate)
+        .onChange((value) => {
+          this.form.dueDate = value;
+        })
+    );
 
-    new Setting(contentEl)
-      .setName("Due time")
-      .addText((text) =>
-        text
-          .setPlaceholder("HH:MM (optional)")
-          .setValue(this.form.dueTime)
-          .onChange((value) => {
-            this.form.dueTime = value;
-          })
-      );
+    new Setting(contentEl).setName("Due time").addText((text) =>
+      text
+        .setPlaceholder("HH:MM (optional)")
+        .setValue(this.form.dueTime)
+        .onChange((value) => {
+          this.form.dueTime = value;
+        })
+    );
 
     // List dropdown — populated async
-    const listSetting = new Setting(contentEl)
-      .setName("Reminder list")
-      .addDropdown((dropdown) => {
-        dropdown.addOption(this.form.listName, this.form.listName);
-        dropdown.setValue(this.form.listName);
-        dropdown.onChange((value) => {
-          this.form.listName = value;
-        });
-        this.listDropdownEl = dropdown.selectEl;
+    const listSetting = new Setting(contentEl).setName("Reminder list").addDropdown((dropdown) => {
+      dropdown.addOption(this.form.listName, this.form.listName);
+      dropdown.setValue(this.form.listName);
+      dropdown.onChange((value) => {
+        this.form.listName = value;
       });
+      this.listDropdownEl = dropdown.selectEl;
+    });
 
     this.loadReminderLists(listSetting);
 
-    new Setting(contentEl)
-      .setName("Priority")
-      .addDropdown((dropdown) =>
-        dropdown
-          .addOption("0", "None")
-          .addOption("1", "High")
-          .addOption("5", "Medium")
-          .addOption("9", "Low")
-          .setValue(String(this.form.priority))
-          .onChange((value) => {
-            this.form.priority = Number(value);
-          })
-      );
+    new Setting(contentEl).setName("Priority").addDropdown((dropdown) =>
+      dropdown
+        .addOption("0", "None")
+        .addOption("1", "High")
+        .addOption("5", "Medium")
+        .addOption("9", "Low")
+        .setValue(String(this.form.priority))
+        .onChange((value) => {
+          this.form.priority = Number(value);
+        })
+    );
 
-    new Setting(contentEl)
-      .setName("Notes")
-      .addTextArea((area) =>
-        area
-          .setPlaceholder("Optional")
-          .setValue(this.form.notes)
-          .onChange((value) => {
-            this.form.notes = value;
-          })
-      );
+    new Setting(contentEl).setName("Notes").addTextArea((area) =>
+      area
+        .setPlaceholder("Optional")
+        .setValue(this.form.notes)
+        .onChange((value) => {
+          this.form.notes = value;
+        })
+    );
 
     // Action buttons
     const actions = contentEl.createDiv({ cls: "apple-bridge-modal-actions" });
@@ -140,7 +128,7 @@ export class CreateReminderModal extends Modal {
     this.contentEl.empty();
   }
 
-  private async loadReminderLists(listSetting: Setting): Promise<void> {
+  private async loadReminderLists(_listSetting: Setting): Promise<void> {
     try {
       const lists = await listReminderLists();
       if (!this.listDropdownEl) return;
@@ -151,8 +139,7 @@ export class CreateReminderModal extends Modal {
         select.remove(0);
       }
 
-      const defaultList =
-        this.plugin.settings.defaultReminderList || "Reminders";
+      const defaultList = this.plugin.settings.defaultReminderList || "Reminders";
       for (const list of lists) {
         const opt = document.createElement("option");
         opt.value = list.name;
@@ -164,7 +151,7 @@ export class CreateReminderModal extends Modal {
       const available = lists.map((l) => l.name);
       const selectedList = available.includes(defaultList)
         ? defaultList
-        : available[0] ?? defaultList;
+        : (available[0] ?? defaultList);
 
       select.value = selectedList;
       this.form.listName = selectedList;
@@ -174,7 +161,7 @@ export class CreateReminderModal extends Modal {
   }
 
   private async handleCreate(): Promise<void> {
-    const { form, plugin } = this;
+    const { form } = this;
 
     if (!form.title.trim()) {
       new Notice("Reminder title is required");
@@ -203,15 +190,11 @@ export class CreateReminderModal extends Modal {
         }
       }
 
-      const reminderId = await createReminder(
-        form.listName,
-        form.title.trim(),
-        {
-          dueDate,
-          notes: form.notes || undefined,
-          priority: form.priority,
-        }
-      );
+      const reminderId = await createReminder(form.listName, form.title.trim(), {
+        dueDate,
+        notes: form.notes || undefined,
+        priority: form.priority,
+      });
 
       await this.writeReminderToNote(reminderId, dueDate);
       await this.updateSyncState(reminderId, dueDate);
@@ -224,10 +207,7 @@ export class CreateReminderModal extends Modal {
     }
   }
 
-  private async writeReminderToNote(
-    reminderId: string,
-    dueDate: Date | undefined
-  ): Promise<void> {
+  private async writeReminderToNote(reminderId: string, dueDate: Date | undefined): Promise<void> {
     const { form, plugin } = this;
     const vault = plugin.app.vault;
     const remindersFolder = plugin.settings.remindersFolder ?? "";
@@ -262,9 +242,7 @@ export class CreateReminderModal extends Modal {
     const lines = content.split("\n");
 
     // Build reminder line: - [ ] title 📅 YYYY-MM-DD [rid:id]
-    const duePart = dueDate
-      ? ` \uD83D\uDCC5 ${noteDate}`
-      : "";
+    const duePart = dueDate ? ` \uD83D\uDCC5 ${noteDate}` : "";
     const reminderLine = `- [ ] ${form.title.trim()}${duePart} [rid:${reminderId}]`;
 
     const sectionHeader = "## Reminders";
@@ -280,16 +258,10 @@ export class CreateReminderModal extends Modal {
       lines.push("", sectionHeader, "", reminderLine);
     }
 
-    await vault.modify(
-      file as Parameters<typeof vault.modify>[0],
-      lines.join("\n")
-    );
+    await vault.modify(file as Parameters<typeof vault.modify>[0], lines.join("\n"));
   }
 
-  private async updateSyncState(
-    reminderId: string,
-    dueDate: Date | undefined
-  ): Promise<void> {
+  private async updateSyncState(reminderId: string, dueDate: Date | undefined): Promise<void> {
     const { form, plugin } = this;
     const data = (await plugin.loadData()) ?? {};
     const syncState = data["reminders-sync-state"] ?? { reminders: {} };
