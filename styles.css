@@ -1,0 +1,197 @@
+/* =============================================
+   Apple Bridge — Plugin Styles
+   Uses Obsidian CSS custom properties for
+   seamless light/dark theme support.
+   ============================================= */
+
+/* --- Settings Tab --- */
+
+.apple-bridge-settings .setting-item-heading {
+  padding-top: 1.2em;
+}
+
+.apple-bridge-settings .apple-bridge-section {
+  margin-top: 1.5em;
+  padding: 1em 1em 0.5em;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  background-color: var(--background-secondary);
+}
+
+.apple-bridge-settings .apple-bridge-section-title {
+  margin: 0 0 0.75em;
+  font-size: var(--font-ui-medium);
+  font-weight: 600;
+  color: var(--text-normal);
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+}
+
+.apple-bridge-settings .apple-bridge-section-title .apple-bridge-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  font-size: 13px;
+}
+
+.apple-bridge-settings .apple-bridge-section-title .apple-bridge-icon--calendar {
+  background-color: rgba(255, 59, 48, 0.15);
+  color: #ff3b30;
+}
+
+.apple-bridge-settings .apple-bridge-section-title .apple-bridge-icon--reminders {
+  background-color: rgba(0, 122, 255, 0.15);
+  color: #007aff;
+}
+
+.apple-bridge-settings .apple-bridge-section-title .apple-bridge-icon--contacts {
+  background-color: rgba(52, 199, 89, 0.15);
+  color: #34c759;
+}
+
+.apple-bridge-settings .apple-bridge-section-title .apple-bridge-icon--notes {
+  background-color: rgba(255, 204, 0, 0.2);
+  color: #e6a700;
+}
+
+.apple-bridge-settings .apple-bridge-section .setting-item {
+  border-top: none;
+  padding-top: 0.6em;
+  padding-bottom: 0.6em;
+}
+
+.apple-bridge-settings .apple-bridge-section .setting-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+/* Header banner */
+.apple-bridge-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75em;
+  padding: 0.75em 1em;
+  margin-bottom: 1em;
+  border-radius: 8px;
+  background: linear-gradient(
+    135deg,
+    var(--background-secondary) 0%,
+    var(--background-secondary-alt) 100%
+  );
+  border: 1px solid var(--background-modifier-border);
+}
+
+.apple-bridge-header-logo {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.apple-bridge-header-text h2 {
+  margin: 0;
+  font-size: var(--font-ui-large);
+  font-weight: 700;
+  color: var(--text-normal);
+}
+
+.apple-bridge-header-text p {
+  margin: 0.15em 0 0;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+}
+
+/* --- Conflict / Advanced section --- */
+
+.apple-bridge-settings .apple-bridge-section--advanced {
+  background-color: transparent;
+  border-style: dashed;
+}
+
+/* --- Create Event Modal --- */
+
+.apple-bridge-modal .modal-content {
+  padding: 0.5em 0;
+}
+
+.apple-bridge-modal .apple-bridge-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  margin-bottom: 0.75em;
+}
+
+.apple-bridge-modal .apple-bridge-modal-header h2 {
+  margin: 0;
+  font-size: var(--font-ui-large);
+  font-weight: 600;
+}
+
+.apple-bridge-modal .apple-bridge-modal-header .apple-bridge-modal-icon {
+  font-size: 20px;
+}
+
+.apple-bridge-modal .setting-item {
+  padding-top: 0.5em;
+  padding-bottom: 0.5em;
+  border-top: none;
+}
+
+.apple-bridge-modal .apple-bridge-time-row {
+  display: flex;
+  gap: 1em;
+}
+
+.apple-bridge-modal .apple-bridge-time-row .setting-item {
+  flex: 1;
+  min-width: 0;
+}
+
+.apple-bridge-modal .apple-bridge-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5em;
+  margin-top: 1em;
+  padding-top: 0.75em;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.apple-bridge-modal .apple-bridge-modal-actions .mod-cta {
+  min-width: 120px;
+}
+
+/* --- Sync Status Notice --- */
+
+.apple-bridge-notice {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+
+.apple-bridge-notice .apple-bridge-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--text-muted);
+  border-top-color: var(--interactive-accent);
+  border-radius: 50%;
+  animation: apple-bridge-spin 0.8s linear infinite;
+}
+
+@keyframes apple-bridge-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* --- Ribbon Icon Tooltip Polish --- */
+
+.apple-bridge-ribbon-icon {
+  transition: color 0.15s ease;
+}
+
+.apple-bridge-ribbon-icon:hover {
+  color: var(--interactive-accent);
+}

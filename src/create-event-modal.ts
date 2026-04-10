@@ -66,8 +66,13 @@ export class CreateEventModal extends Modal {
   }
 
   onOpen() {
-    const { contentEl } = this;
-    contentEl.createEl("h2", { text: "Create Calendar Event" });
+    const { contentEl, modalEl } = this;
+    modalEl.addClass("apple-bridge-modal");
+
+    // Header with icon
+    const header = contentEl.createDiv({ cls: "apple-bridge-modal-header" });
+    header.createSpan({ cls: "apple-bridge-modal-icon", text: "\uD83D\uDCC5" });
+    header.createEl("h2", { text: "Create Calendar Event" });
 
     new Setting(contentEl)
       .setName("Title")
@@ -99,7 +104,10 @@ export class CreateEventModal extends Modal {
         })
       );
 
-    new Setting(contentEl)
+    // Time row — start and end side-by-side
+    const timeRow = contentEl.createDiv({ cls: "apple-bridge-time-row" });
+
+    new Setting(timeRow)
       .setName("Start time")
       .addText((text) =>
         text
@@ -110,7 +118,7 @@ export class CreateEventModal extends Modal {
           })
       );
 
-    new Setting(contentEl)
+    new Setting(timeRow)
       .setName("End time")
       .addText((text) =>
         text
@@ -143,7 +151,12 @@ export class CreateEventModal extends Modal {
           })
       );
 
-    new Setting(contentEl).addButton((btn) =>
+    // Action buttons
+    const actions = contentEl.createDiv({ cls: "apple-bridge-modal-actions" });
+    new Setting(actions).addButton((btn) =>
+      btn.setButtonText("Cancel").onClick(() => this.close())
+    );
+    new Setting(actions).addButton((btn) =>
       btn
         .setButtonText("Create Event")
         .setCta()

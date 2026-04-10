@@ -61,9 +61,10 @@ export default class AppleBridgePlugin extends Plugin {
       },
     });
 
-    this.addRibbonIcon("refresh-cw", "Sync Apple Apps", () => {
+    const ribbonEl = this.addRibbonIcon("refresh-cw", "Sync Apple Apps", () => {
       this.syncAll();
     });
+    ribbonEl.addClass("apple-bridge-ribbon-icon");
 
     if (this.settings.syncIntervalMinutes > 0) {
       this.registerInterval(
@@ -108,22 +109,27 @@ class AppleBridgeSettingTab extends PluginSettingTab {
   display(): void {
     const { containerEl } = this;
     containerEl.empty();
+    containerEl.addClass("apple-bridge-settings");
 
-    containerEl.createEl("h2", { text: "Apple Bridge Settings" });
+    // --- Header banner ---
+    const header = containerEl.createDiv({ cls: "apple-bridge-header" });
+    header.createSpan({ cls: "apple-bridge-header-logo", text: "\uD83C\uDF4E" });
+    const headerText = header.createDiv({ cls: "apple-bridge-header-text" });
+    headerText.createEl("h2", { text: "Apple Bridge" });
+    headerText.createEl("p", {
+      text: "Connect your Obsidian vault with Apple apps",
+    });
 
-    new Setting(containerEl)
-      .setName("Sync Reminders")
-      .setDesc("Sync Apple Reminders to your vault")
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.syncReminders)
-          .onChange(async (value) => {
-            this.plugin.settings.syncReminders = value;
-            await this.plugin.saveSettings();
-          })
-      );
+    // --- Calendar section ---
+    const calSection = containerEl.createDiv({ cls: "apple-bridge-section" });
+    const calTitle = calSection.createDiv({ cls: "apple-bridge-section-title" });
+    calTitle.createSpan({
+      cls: "apple-bridge-icon apple-bridge-icon--calendar",
+      text: "\uD83D\uDCC5",
+    });
+    calTitle.createSpan({ text: "Calendar" });
 
-    new Setting(containerEl)
+    new Setting(calSection)
       .setName("Sync Calendar")
       .setDesc("Sync Apple Calendar events to your vault")
       .addToggle((toggle) =>
@@ -135,32 +141,8 @@ class AppleBridgeSettingTab extends PluginSettingTab {
           })
       );
 
-    new Setting(containerEl)
-      .setName("Sync Contacts")
-      .setDesc("Import Apple Contacts as notes")
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.syncContacts)
-          .onChange(async (value) => {
-            this.plugin.settings.syncContacts = value;
-            await this.plugin.saveSettings();
-          })
-      );
-
-    new Setting(containerEl)
-      .setName("Sync Notes")
-      .setDesc("Import Apple Notes into your vault")
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.syncNotes)
-          .onChange(async (value) => {
-            this.plugin.settings.syncNotes = value;
-            await this.plugin.saveSettings();
-          })
-      );
-
-    new Setting(containerEl)
-      .setName("Default Calendar")
+    new Setting(calSection)
+      .setName("Default calendar")
       .setDesc("Apple Calendar name to create new events in")
       .addText((text) =>
         text
@@ -172,8 +154,44 @@ class AppleBridgeSettingTab extends PluginSettingTab {
           })
       );
 
-    new Setting(containerEl)
-      .setName("Default Reminder List")
+    new Setting(calSection)
+      .setName("Vault folder")
+      .setDesc(
+        "Vault folder for daily notes with calendar events (empty = vault root)"
+      )
+      .addText((text) =>
+        text
+          .setPlaceholder("e.g. Calendar")
+          .setValue(this.plugin.settings.calendarFolder)
+          .onChange(async (value) => {
+            this.plugin.settings.calendarFolder = value.trim();
+            await this.plugin.saveSettings();
+          })
+      );
+
+    // --- Reminders section ---
+    const remSection = containerEl.createDiv({ cls: "apple-bridge-section" });
+    const remTitle = remSection.createDiv({ cls: "apple-bridge-section-title" });
+    remTitle.createSpan({
+      cls: "apple-bridge-icon apple-bridge-icon--reminders",
+      text: "\u2705",
+    });
+    remTitle.createSpan({ text: "Reminders" });
+
+    new Setting(remSection)
+      .setName("Sync Reminders")
+      .setDesc("Sync Apple Reminders to your vault")
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.syncReminders)
+          .onChange(async (value) => {
+            this.plugin.settings.syncReminders = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(remSection)
+      .setName("Default list")
       .setDesc("Apple Reminders list to create new reminders in")
       .addText((text) =>
         text
@@ -185,8 +203,98 @@ class AppleBridgeSettingTab extends PluginSettingTab {
           })
       );
 
-    new Setting(containerEl)
-      .setName("Sync Interval")
+    new Setting(remSection)
+      .setName("Vault folder")
+      .setDesc(
+        "Vault folder for daily notes with reminders (empty = vault root)"
+      )
+      .addText((text) =>
+        text
+          .setPlaceholder("e.g. Reminders")
+          .setValue(this.plugin.settings.remindersFolder)
+          .onChange(async (value) => {
+            this.plugin.settings.remindersFolder = value.trim();
+            await this.plugin.saveSettings();
+          })
+      );
+
+    // --- Contacts section ---
+    const conSection = containerEl.createDiv({ cls: "apple-bridge-section" });
+    const conTitle = conSection.createDiv({ cls: "apple-bridge-section-title" });
+    conTitle.createSpan({
+      cls: "apple-bridge-icon apple-bridge-icon--contacts",
+      text: "\uD83D\uDC64",
+    });
+    conTitle.createSpan({ text: "Contacts" });
+
+    new Setting(conSection)
+      .setName("Sync Contacts")
+      .setDesc("Import Apple Contacts as notes")
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.syncContacts)
+          .onChange(async (value) => {
+            this.plugin.settings.syncContacts = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(conSection)
+      .setName("Vault folder")
+      .setDesc("Vault folder for imported Apple Contacts")
+      .addText((text) =>
+        text
+          .setPlaceholder("People")
+          .setValue(this.plugin.settings.contactsFolder)
+          .onChange(async (value) => {
+            this.plugin.settings.contactsFolder = value.trim() || "People";
+            await this.plugin.saveSettings();
+          })
+      );
+
+    // --- Notes section ---
+    const notSection = containerEl.createDiv({ cls: "apple-bridge-section" });
+    const notTitle = notSection.createDiv({ cls: "apple-bridge-section-title" });
+    notTitle.createSpan({
+      cls: "apple-bridge-icon apple-bridge-icon--notes",
+      text: "\uD83D\uDCDD",
+    });
+    notTitle.createSpan({ text: "Notes" });
+
+    new Setting(notSection)
+      .setName("Sync Notes")
+      .setDesc("Import Apple Notes into your vault")
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.syncNotes)
+          .onChange(async (value) => {
+            this.plugin.settings.syncNotes = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(notSection)
+      .setName("Vault folder")
+      .setDesc("Vault folder for imported Apple Notes")
+      .addText((text) =>
+        text
+          .setPlaceholder("Apple Notes")
+          .setValue(this.plugin.settings.notesFolder)
+          .onChange(async (value) => {
+            this.plugin.settings.notesFolder = value.trim() || "Apple Notes";
+            await this.plugin.saveSettings();
+          })
+      );
+
+    // --- General settings section ---
+    const genSection = containerEl.createDiv({
+      cls: "apple-bridge-section apple-bridge-section--advanced",
+    });
+    const genTitle = genSection.createDiv({ cls: "apple-bridge-section-title" });
+    genTitle.createSpan({ text: "General" });
+
+    new Setting(genSection)
+      .setName("Sync interval")
       .setDesc("How often to auto-sync, in minutes (0 = manual only)")
       .addText((text) =>
         text
@@ -201,11 +309,8 @@ class AppleBridgeSettingTab extends PluginSettingTab {
           })
       );
 
-    // --- Conflict Resolution ---
-    containerEl.createEl("h3", { text: "Conflict Resolution" });
-
-    new Setting(containerEl)
-      .setName("Resolution strategy")
+    new Setting(genSection)
+      .setName("Conflict resolution")
       .setDesc(
         "How to resolve conflicts when both local and remote change between syncs"
       )
@@ -218,65 +323,6 @@ class AppleBridgeSettingTab extends PluginSettingTab {
           .onChange(async (value) => {
             this.plugin.settings.conflictResolution =
               value as ConflictResolution;
-            await this.plugin.saveSettings();
-          })
-      );
-
-    // --- Vault Folder Mappings ---
-    containerEl.createEl("h3", { text: "Vault Folder Mappings" });
-
-    new Setting(containerEl)
-      .setName("Calendar folder")
-      .setDesc(
-        "Vault folder for daily notes with calendar events (empty = vault root)"
-      )
-      .addText((text) =>
-        text
-          .setPlaceholder("e.g. Calendar")
-          .setValue(this.plugin.settings.calendarFolder)
-          .onChange(async (value) => {
-            this.plugin.settings.calendarFolder = value.trim();
-            await this.plugin.saveSettings();
-          })
-      );
-
-    new Setting(containerEl)
-      .setName("Reminders folder")
-      .setDesc(
-        "Vault folder for daily notes with reminders (empty = vault root)"
-      )
-      .addText((text) =>
-        text
-          .setPlaceholder("e.g. Reminders")
-          .setValue(this.plugin.settings.remindersFolder)
-          .onChange(async (value) => {
-            this.plugin.settings.remindersFolder = value.trim();
-            await this.plugin.saveSettings();
-          })
-      );
-
-    new Setting(containerEl)
-      .setName("Notes folder")
-      .setDesc("Vault folder for imported Apple Notes")
-      .addText((text) =>
-        text
-          .setPlaceholder("Apple Notes")
-          .setValue(this.plugin.settings.notesFolder)
-          .onChange(async (value) => {
-            this.plugin.settings.notesFolder = value.trim() || "Apple Notes";
-            await this.plugin.saveSettings();
-          })
-      );
-
-    new Setting(containerEl)
-      .setName("Contacts folder")
-      .setDesc("Vault folder for imported Apple Contacts")
-      .addText((text) =>
-        text
-          .setPlaceholder("People")
-          .setValue(this.plugin.settings.contactsFolder)
-          .onChange(async (value) => {
-            this.plugin.settings.contactsFolder = value.trim() || "People";
             await this.plugin.saveSettings();
           })
       );
