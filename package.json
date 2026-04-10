@@ -9,7 +9,7 @@
     "version": "node version-bump.mjs && git add manifest.json versions.json"
   },
   "keywords": ["obsidian", "apple", "reminders", "calendar", "contacts", "notes"],
-  "author": "Your Name",
+  "author": "AsakoKabe",
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^20.0.0",
