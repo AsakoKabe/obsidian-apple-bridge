@@ -3,6 +3,7 @@ import { syncCalendar } from "./calendar-sync";
 import { syncReminders } from "./reminders-sync";
 import { syncNotes } from "./notes-sync";
 import { syncContacts } from "./contacts-sync";
+import { CreateEventModal } from "./create-event-modal";
 
 type ConflictResolution = "remote-wins" | "local-wins" | "most-recent";
 
@@ -49,6 +50,14 @@ export default class AppleBridgePlugin extends Plugin {
       name: "Sync Apple Apps now",
       callback: () => {
         this.syncAll();
+      },
+    });
+
+    this.addCommand({
+      id: "create-calendar-event",
+      name: "Create Calendar Event",
+      callback: () => {
+        new CreateEventModal(this.app, this).open();
       },
     });
 
