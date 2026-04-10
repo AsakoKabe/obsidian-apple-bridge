@@ -21,6 +21,7 @@ export default defineConfig({
         "src/sync-filter.ts",
         "src/sync-log.ts",
         "src/dataview-metadata.ts",
+        "src/reminder-archive.ts",
       ],
       thresholds: {
         lines: 80,

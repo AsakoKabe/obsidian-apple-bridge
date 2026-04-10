@@ -22,6 +22,8 @@ export interface AppleBridgeSettings {
   calendarFilter?: SyncFilter;
   reminderListFilter?: SyncFilter;
   dataviewMetadata: boolean;
+  archiveCompletedReminders: boolean;
+  archiveFilePath: string;
 }
 
 export const DEFAULT_SETTINGS: AppleBridgeSettings = {
@@ -42,4 +44,6 @@ export const DEFAULT_SETTINGS: AppleBridgeSettings = {
   syncRangeFutureDays: 14,
   eventTemplates: {},
   dataviewMetadata: false,
+  archiveCompletedReminders: false,
+  archiveFilePath: "Completed Reminders.md",
 };

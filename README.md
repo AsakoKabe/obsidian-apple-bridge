@@ -121,6 +121,29 @@ Reminders appear under a `## Reminders` section:
 - Toggle `[x]` / `[ ]` to complete or reopen a reminder — the change syncs to Apple Reminders.
 - Add `📅 YYYY-MM-DD` to set a due date on new local reminders.
 
+### Completed reminder archiving
+
+When enabled, completed reminders are automatically moved from daily notes to a dedicated archive file. This keeps your daily notes focused on what's still open.
+
+The archive groups entries by date with the newest dates at the top:
+
+```markdown
+# Completed Reminders
+
+## 2026-04-10
+
+- [x] Buy groceries 📅 2026-04-10 [rid:R1234]
+- [x] Send email [rid:R5678]
+
+## 2026-04-09
+
+- [x] Call dentist [rid:R9012]
+```
+
+Enable this in **Settings > Apple Bridge > Reminders > Archive completed reminders**. You can configure a custom archive file path (default: `Completed Reminders.md` in your reminders folder).
+
+If the archive write fails, completed reminders stay in the daily note as a safe fallback — no data is lost.
+
 ### Quick Reminder from selection
 
 Select any text in your vault and run **Create Reminder from Selection** from the command palette (`Cmd+P`). The selected text becomes the reminder title, a new reminder is created in Apple Reminders with today's due date, and a `[rid:...]` line is added to your daily note.
@@ -202,21 +225,23 @@ Developer at Acme Corp
 
 Open **Settings → Apple Bridge**:
 
-| Setting               | Description                                       | Default        |
-| --------------------- | ------------------------------------------------- | -------------- |
-| Sync Calendar         | Enable Calendar two-way sync                      | On             |
-| Sync Reminders        | Enable Reminders two-way sync                     | On             |
-| Sync Notes            | Enable Apple Notes two-way sync                   | Off            |
-| Sync Contacts         | Enable Contacts import                            | Off            |
-| Sync Interval         | Auto-sync interval in minutes (0 = manual only)   | 15             |
-| Default Calendar      | Apple Calendar for new events created in Obsidian | Calendar       |
-| Default Reminder List | Apple Reminders list for new reminders            | Reminders      |
-| Conflict Resolution   | How to handle two-way conflicts                   | remote-wins    |
-| Calendar folder       | Vault folder for daily notes                      | _(vault root)_ |
-| Reminders folder      | Vault folder for daily notes                      | _(vault root)_ |
-| Notes folder          | Vault folder for imported Apple Notes             | Apple Notes    |
-| Contacts folder       | Vault folder for imported contacts                | People         |
-| Dataview metadata     | Add frontmatter fields for Dataview queries       | Off            |
+| Setting               | Description                                         | Default                |
+| --------------------- | --------------------------------------------------- | ---------------------- |
+| Sync Calendar         | Enable Calendar two-way sync                        | On                     |
+| Sync Reminders        | Enable Reminders two-way sync                       | On                     |
+| Sync Notes            | Enable Apple Notes two-way sync                     | Off                    |
+| Sync Contacts         | Enable Contacts import                              | Off                    |
+| Sync Interval         | Auto-sync interval in minutes (0 = manual only)     | 15                     |
+| Default Calendar      | Apple Calendar for new events created in Obsidian   | Calendar               |
+| Default Reminder List | Apple Reminders list for new reminders              | Reminders              |
+| Conflict Resolution   | How to handle two-way conflicts                     | remote-wins            |
+| Calendar folder       | Vault folder for daily notes                        | _(vault root)_         |
+| Reminders folder      | Vault folder for daily notes                        | _(vault root)_         |
+| Notes folder          | Vault folder for imported Apple Notes               | Apple Notes            |
+| Contacts folder       | Vault folder for imported contacts                  | People                 |
+| Dataview metadata     | Add frontmatter fields for Dataview queries         | Off                    |
+| Archive completed     | Move completed reminders to a separate archive note | Off                    |
+| Archive file          | Path for the completed reminders archive            | Completed Reminders.md |
 
 ### Dataview metadata
 
@@ -297,7 +322,7 @@ WHERE contains(apple_calendars, "Work")
 - **Sync log** — persistent log of sync operations for troubleshooting ✅
 - **Dataview metadata** — expose sync data as frontmatter fields for Dataview queries ✅
 - **Incremental sync** — only fetch changes since last sync for better performance
-- **Completed reminder archiving** — auto-move completed reminders to an archive note
+- **Completed reminder archiving** — auto-move completed reminders to an archive note ✅
 - **Community plugin submission** — publish to the Obsidian community plugin directory
 
 ---

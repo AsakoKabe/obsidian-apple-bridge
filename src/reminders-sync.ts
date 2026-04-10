@@ -9,6 +9,7 @@ import {
 import { dailyNotePath, toDateKey, buildDateRange, ensureDailyNote } from "./vault-utils";
 import { filterByName } from "./sync-filter";
 import { updateFrontmatter } from "./dataview-metadata";
+import { resolveArchivePath, archiveCompletedReminders } from "./reminder-archive";
 import type AppleBridgePlugin from "./main";
 
 interface SyncedReminder {
@@ -268,6 +269,26 @@ async function syncRemindersForDate(
 
   // Write merged reminders back to note
   await writeRemindersToNote(vault, file, mergedReminders);
+
+  // Archive completed reminders if enabled
+  if (plugin.settings.archiveCompletedReminders) {
+    const completedLines = mergedReminders.filter((r) => r.isCompleted).map(formatReminderLine);
+    if (completedLines.length > 0) {
+      const archivePath = resolveArchivePath(
+        remindersFolder,
+        plugin.settings.archiveFilePath ?? "Completed Reminders.md"
+      );
+      try {
+        await archiveCompletedReminders(vault, archivePath, toDateKey(date), completedLines);
+        // Re-write daily note with only incomplete reminders
+        const incompleteOnly = mergedReminders.filter((r) => !r.isCompleted);
+        await writeRemindersToNote(vault, file, incompleteOnly);
+      } catch {
+        // Archive failed — completed reminders stay in daily note (safe fallback)
+        new Notice("Failed to archive completed reminders — they remain in the daily note.");
+      }
+    }
+  }
 
   // Update Dataview frontmatter if enabled
   if (plugin.settings.dataviewMetadata && mergedReminders.length > 0) {

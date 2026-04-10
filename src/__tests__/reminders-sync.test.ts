@@ -473,4 +473,107 @@ describe("syncReminders", () => {
     expect(createCalls).not.toContain("2026-04-11.md");
     expect(createCalls).toContain(NOTE_PATH);
   });
+
+  describe("completed reminder archiving", () => {
+    it("does not archive when setting is disabled", async () => {
+      vi.mocked(fetchReminders).mockResolvedValue([
+        makeReminder({ id: "rem-1", isCompleted: true, dueDate: `${FIXED_DATE}T12:00:00Z` }),
+      ]);
+
+      const plugin = createMockPlugin({}, { archiveCompletedReminders: false });
+      await syncReminders(plugin as never);
+
+      const files = plugin.app.vault._files;
+      expect(files.has("Completed Reminders.md")).toBe(false);
+      // Completed reminder stays in daily note
+      const note = files.get(NOTE_PATH) ?? "";
+      expect(note).toContain("[x]");
+    });
+
+    it("moves completed reminders to archive when enabled", async () => {
+      vi.mocked(fetchReminders).mockResolvedValue([
+        makeReminder({
+          id: "rem-done",
+          title: "Done task",
+          isCompleted: true,
+          dueDate: `${FIXED_DATE}T10:00:00Z`,
+        }),
+        makeReminder({
+          id: "rem-open",
+          title: "Open task",
+          isCompleted: false,
+          dueDate: `${FIXED_DATE}T14:00:00Z`,
+        }),
+      ]);
+
+      const plugin = createMockPlugin({}, { archiveCompletedReminders: true });
+      await syncReminders(plugin as never);
+
+      const files = plugin.app.vault._files;
+
+      // Archive file should contain the completed reminder
+      const archive = files.get("Completed Reminders.md") ?? "";
+      expect(archive).toContain("Done task");
+      expect(archive).toContain("[rid:rem-done]");
+      expect(archive).toContain(`## ${FIXED_DATE}`);
+
+      // Daily note should only have the incomplete reminder
+      const note = files.get(NOTE_PATH) ?? "";
+      expect(note).toContain("Open task");
+      expect(note).not.toContain("Done task");
+    });
+
+    it("uses custom archive file path from settings", async () => {
+      vi.mocked(fetchReminders).mockResolvedValue([
+        makeReminder({
+          id: "rem-1",
+          isCompleted: true,
+          dueDate: `${FIXED_DATE}T10:00:00Z`,
+        }),
+      ]);
+
+      const plugin = createMockPlugin(
+        {},
+        { archiveCompletedReminders: true, archiveFilePath: "Archive/Done.md" }
+      );
+      await syncReminders(plugin as never);
+
+      const files = plugin.app.vault._files;
+      expect(files.has("Archive/Done.md")).toBe(true);
+      expect(files.has("Completed Reminders.md")).toBe(false);
+    });
+
+    it("preserves existing archive entries when archiving new ones", async () => {
+      const existingArchive = [
+        "# Completed Reminders",
+        "",
+        "## 2026-04-09",
+        "",
+        "- [x] Old task [rid:rem-old]",
+        "",
+      ].join("\n");
+
+      vi.mocked(fetchReminders).mockResolvedValue([
+        makeReminder({
+          id: "rem-new",
+          title: "New done",
+          isCompleted: true,
+          dueDate: `${FIXED_DATE}T10:00:00Z`,
+        }),
+      ]);
+
+      const plugin = createMockPlugin(
+        { "Completed Reminders.md": existingArchive },
+        { archiveCompletedReminders: true }
+      );
+      await syncReminders(plugin as never);
+
+      const files = plugin.app.vault._files;
+      const archive = files.get("Completed Reminders.md") ?? "";
+      expect(archive).toContain("Old task");
+      expect(archive).toContain("New done");
+      expect(archive).toContain("## 2026-04-09");
+      expect(archive).toContain(`## ${FIXED_DATE}`);
+    });
+  });
 });

@@ -299,6 +299,33 @@ export class AppleBridgeSettingTab extends PluginSettingTab {
       );
 
     this.renderFilterSetting(remSection, "Reminder list", "reminderListFilter");
+
+    new Setting(remSection)
+      .setName("Archive completed reminders")
+      .setDesc("Move completed reminders from daily notes to a separate archive note")
+      .addToggle((toggle) =>
+        toggle.setValue(this.plugin.settings.archiveCompletedReminders).onChange(async (value) => {
+          this.plugin.settings.archiveCompletedReminders = value;
+          await this.plugin.saveSettings();
+          await this.display();
+        })
+      );
+
+    if (this.plugin.settings.archiveCompletedReminders) {
+      new Setting(remSection)
+        .setName("Archive file")
+        .setDesc("Path to the archive note for completed reminders (relative to vault root)")
+        .addText((text) =>
+          text
+            .setPlaceholder("Completed Reminders.md")
+            .setValue(this.plugin.settings.archiveFilePath)
+            .onChange(async (value) => {
+              this.plugin.settings.archiveFilePath = value.trim() || "Completed Reminders.md";
+              await this.plugin.saveSettings();
+            })
+        );
+    }
+
     appendEmptyState(remSection, statusMap.reminders, "reminders", null);
 
     const conSection = this.renderServiceSection(containerEl, {
