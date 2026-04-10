@@ -1,5 +1,12 @@
-import { describe, it, expect } from "vitest";
-import { htmlToMarkdown } from "../notes-bridge";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { htmlToMarkdown, listNoteFolders, fetchNotes, fetchNoteById } from "../notes-bridge";
+import { execFile } from "child_process";
+
+vi.mock("child_process", () => ({
+  execFile: vi.fn(),
+}));
+
+const mockExecFile = vi.mocked(execFile);
 
 describe("htmlToMarkdown", () => {
   it("converts h1 headings", () => {
@@ -165,5 +172,171 @@ describe("htmlToMarkdown", () => {
 
   it("handles plain text with no tags", () => {
     expect(htmlToMarkdown("just plain text")).toBe("just plain text");
+  });
+
+  it("returns empty string for table with no rows", () => {
+    const result = htmlToMarkdown("<table></table>");
+    expect(result).toBe("");
+  });
+});
+
+// ─── JXA bridge function tests ────────────────────────────────────────────
+
+function simulateExecFile(stdout: string) {
+  mockExecFile.mockImplementation((_cmd, _args, _opts, callback) => {
+    (callback as Function)(null, stdout, "");
+    return undefined as any;
+  });
+}
+
+function simulateExecFileError(message: string, stderr = "") {
+  mockExecFile.mockImplementation((_cmd, _args, _opts, callback) => {
+    const error = new Error(message);
+    (callback as Function)(error, "", stderr);
+    return undefined as any;
+  });
+}
+
+describe("listNoteFolders", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns parsed folder list from JXA output", async () => {
+    const folders = [
+      { name: "Notes", id: "folder-1", path: "Notes" },
+      { name: "Work", id: "folder-2", path: "Work" },
+    ];
+    simulateExecFile(JSON.stringify(folders));
+
+    const result = await listNoteFolders();
+
+    expect(result).toEqual(folders);
+    expect(mockExecFile).toHaveBeenCalledWith(
+      "/usr/bin/osascript",
+      ["-l", "JavaScript", "-e", expect.any(String)],
+      { maxBuffer: 50 * 1024 * 1024 },
+      expect.any(Function)
+    );
+  });
+
+  it("returns empty array when no folders", async () => {
+    simulateExecFile("[]");
+    const result = await listNoteFolders();
+    expect(result).toEqual([]);
+  });
+
+  it("rejects when JXA fails with stderr", async () => {
+    simulateExecFileError("exit code 1", "permission denied");
+    await expect(listNoteFolders()).rejects.toThrow("JXA error: permission denied");
+  });
+
+  it("rejects with error message when stderr is empty", async () => {
+    simulateExecFileError("something went wrong");
+    await expect(listNoteFolders()).rejects.toThrow("JXA error: something went wrong");
+  });
+});
+
+describe("fetchNotes", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  const sampleNotes = [
+    {
+      id: "note-1",
+      title: "My Note",
+      body: "<p>Hello</p>",
+      folderName: "Notes",
+      folderPath: "Notes",
+      creationDate: "2026-01-01T00:00:00.000Z",
+      modificationDate: "2026-01-02T00:00:00.000Z",
+    },
+  ];
+
+  it("fetches all notes when no folder specified", async () => {
+    simulateExecFile(JSON.stringify(sampleNotes));
+
+    const result = await fetchNotes();
+
+    expect(result).toEqual(sampleNotes);
+    const scriptArg = (mockExecFile.mock.calls[0][1] as string[])[3];
+    expect(scriptArg).toContain("const folders = app.folders()");
+  });
+
+  it("fetches notes for a specific folder", async () => {
+    simulateExecFile(JSON.stringify(sampleNotes));
+
+    await fetchNotes("Work");
+
+    const scriptArg = (mockExecFile.mock.calls[0][1] as string[])[3];
+    expect(scriptArg).toContain('app.folders.whose({ name: "Work" })');
+  });
+
+  it("escapes special characters in folder name", async () => {
+    simulateExecFile("[]");
+
+    await fetchNotes('My "Folder"');
+
+    const scriptArg = (mockExecFile.mock.calls[0][1] as string[])[3];
+    expect(scriptArg).toContain('My \\"Folder\\"');
+  });
+
+  it("returns empty array when no notes found", async () => {
+    simulateExecFile("[]");
+    const result = await fetchNotes();
+    expect(result).toEqual([]);
+  });
+
+  it("rejects on JXA error", async () => {
+    simulateExecFileError("script error", "Notes app not running");
+    await expect(fetchNotes()).rejects.toThrow("JXA error: Notes app not running");
+  });
+});
+
+describe("fetchNoteById", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns a note when found", async () => {
+    const note = {
+      id: "note-42",
+      title: "Found Note",
+      body: "<p>Content</p>",
+      folderName: "Notes",
+      folderPath: "Notes",
+      creationDate: "2026-03-01T00:00:00.000Z",
+      modificationDate: "2026-03-02T00:00:00.000Z",
+    };
+    simulateExecFile(JSON.stringify(note));
+
+    const result = await fetchNoteById("note-42");
+
+    expect(result).toEqual(note);
+    const scriptArg = (mockExecFile.mock.calls[0][1] as string[])[3];
+    expect(scriptArg).toContain('"note-42"');
+  });
+
+  it("returns null when note is not found", async () => {
+    simulateExecFile("null");
+
+    const result = await fetchNoteById("nonexistent");
+
+    expect(result).toBeNull();
+  });
+
+  it("escapes special characters in note ID", async () => {
+    simulateExecFile("null");
+
+    await fetchNoteById('id-with-"quotes"');
+
+    const scriptArg = (mockExecFile.mock.calls[0][1] as string[])[3];
+    expect(scriptArg).toContain('id-with-\\"quotes\\"');
+  });
+
+  it("rejects on JXA error", async () => {
+    simulateExecFileError("failed", "access denied");
+    await expect(fetchNoteById("note-1")).rejects.toThrow("JXA error: access denied");
   });
 });

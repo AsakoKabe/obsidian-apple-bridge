@@ -16,6 +16,7 @@ export default defineConfig({
         "src/vault-utils.ts",
         "src/sync-status.ts",
         "src/status-bar.ts",
+        "src/quick-reminder.ts",
       ],
       thresholds: {
         lines: 80,

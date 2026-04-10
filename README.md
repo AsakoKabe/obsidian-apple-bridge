@@ -121,6 +121,10 @@ Reminders appear under a `## Reminders` section:
 - Toggle `[x]` / `[ ]` to complete or reopen a reminder — the change syncs to Apple Reminders.
 - Add `📅 YYYY-MM-DD` to set a due date on new local reminders.
 
+### Quick Reminder from selection
+
+Select any text in your vault and run **Create Reminder from Selection** from the command palette (`Cmd+P`). The selected text becomes the reminder title, a new reminder is created in Apple Reminders with today's due date, and a `[rid:...]` line is added to your daily note.
+
 ### Creating a calendar event
 
 Run **Create Calendar Event** from the command palette (`Cmd+P`). Fill in the title, date, start/end time, optional location, and notes — the event is created in Apple Calendar and inserted into your daily note at once.
@@ -199,11 +203,11 @@ Open **Settings → Apple Bridge**:
 - Full unit test suite (vitest)
 
 ### Phase 3 — Deeper integration *(in progress)*
+- **Quick Reminder from selection** — create a reminder from selected vault text ✅
+- **Status bar live indicator** — see last sync time and module health at a glance ✅
 - **Bidirectional Notes sync** — push Obsidian markdown edits back to Apple Notes
-- **Quick Reminder from selection** — create a reminder from selected vault text
 - **Event templates** — per-calendar note templates for imported events
 - **Tag-based filtering** — only sync events/reminders matching specific tags or lists
-- **Status bar live indicator** — see last sync time and module health at a glance
 - **iCloud Calendar support** — read-only support for shared iCloud calendars
 
 ---

@@ -1,4 +1,4 @@
-import { App, Notice, Plugin, PluginSettingTab, Setting } from "obsidian";
+import { App, Editor, MarkdownView, Notice, Plugin, PluginSettingTab, Setting } from "obsidian";
 import { syncCalendar } from "./calendar-sync";
 import { syncReminders } from "./reminders-sync";
 import { syncNotes } from "./notes-sync";
@@ -7,6 +7,7 @@ import { CreateEventModal } from "./create-event-modal";
 import { CreateReminderModal } from "./create-reminder-modal";
 import { OnboardingModal } from "./onboarding-modal";
 import { StatusBarWidget } from "./status-bar";
+import { createQuickReminder } from "./quick-reminder";
 import {
   type ServiceKey,
   type SyncStatus,
@@ -87,6 +88,14 @@ export default class AppleBridgePlugin extends Plugin {
       name: "Create Reminder",
       callback: () => {
         new CreateReminderModal(this.app, this).open();
+      },
+    });
+
+    this.addCommand({
+      id: "quick-reminder-from-selection",
+      name: "Create Reminder from Selection",
+      editorCallback: (editor: Editor, _ctx: MarkdownView) => {
+        createQuickReminder(this, editor);
       },
     });
 
