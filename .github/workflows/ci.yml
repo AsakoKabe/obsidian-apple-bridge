@@ -17,12 +17,29 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
+          cache: "npm"
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Type check
         run: npx tsc --noEmit --skipLibCheck
 
       - name: Build
         run: npm run build
+
+      - name: Validate manifest
+        run: |
+          node -e "
+            const m = require('./manifest.json');
+            const p = require('./package.json');
+            if (m.version !== p.version) {
+              console.error('Version mismatch: manifest.json (' + m.version + ') != package.json (' + p.version + ')');
+              process.exit(1);
+            }
+            if (!m.id || !m.name || !m.minAppVersion) {
+              console.error('manifest.json missing required fields');
+              process.exit(1);
+            }
+            console.log('Manifest valid: ' + m.id + ' v' + m.version);
+          "
