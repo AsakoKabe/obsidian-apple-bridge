@@ -2,6 +2,7 @@ import { App, Plugin, PluginSettingTab, Setting } from "obsidian";
 import { syncCalendar } from "./calendar-sync";
 import { syncReminders } from "./reminders-sync";
 import { syncNotes } from "./notes-sync";
+import { syncContacts } from "./contacts-sync";
 
 interface AppleBridgeSettings {
   syncReminders: boolean;
@@ -70,6 +71,7 @@ export default class AppleBridgePlugin extends Plugin {
       syncCalendar(this),
       syncReminders(this),
       syncNotes(this),
+      syncContacts(this),
     ]);
   }
 }
