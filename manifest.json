@@ -1,7 +1,7 @@
 {
   "id": "apple-bridge",
   "name": "Apple Bridge",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "minAppVersion": "1.0.0",
   "description": "Connect your vault with Apple apps: Reminders, Calendar, Contacts, and Notes. Two-way sync keeps your vault and Apple ecosystem in harmony.",
   "author": "AsakoKabe",

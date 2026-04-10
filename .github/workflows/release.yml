@@ -84,3 +84,4 @@ jobs:
             ${{ env.PLUGIN_NAME }}.zip
             release/main.js
             release/manifest.json
+            release/styles.css
