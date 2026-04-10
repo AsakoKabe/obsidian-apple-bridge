@@ -369,11 +369,9 @@ export class OnboardingModal extends Modal {
       }
     });
 
-    // On the summary step the footer is replaced by action buttons above;
-    // swap next to finish behaviour
+    // On the summary step swap button label to "Done"
     if (this.step > SERVICE_STEPS.length) {
       nextBtn.textContent = "Done";
-      nextBtn.onclick = () => this.finishOnboarding();
     }
   }
 
