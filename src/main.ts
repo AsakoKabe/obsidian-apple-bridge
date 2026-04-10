@@ -6,6 +6,7 @@ import { syncContacts } from "./contacts-sync";
 import { CreateEventModal } from "./create-event-modal";
 import { CreateReminderModal } from "./create-reminder-modal";
 import { OnboardingModal } from "./onboarding-modal";
+import { StatusBarWidget } from "./status-bar";
 import {
   type ServiceKey,
   type SyncStatus,
@@ -56,9 +57,12 @@ const DEFAULT_SETTINGS: AppleBridgeSettings = {
 
 export default class AppleBridgePlugin extends Plugin {
   settings: AppleBridgeSettings;
+  private statusBar: StatusBarWidget;
 
   async onload() {
     await this.loadSettings();
+
+    this.statusBar = new StatusBarWidget(this, () => this.syncAll());
 
     this.addSettingTab(new AppleBridgeSettingTab(this.app, this));
 
@@ -106,7 +110,7 @@ export default class AppleBridgePlugin extends Plugin {
   }
 
   onunload() {
-    // cleanup handled by Obsidian's registerInterval
+    this.statusBar.destroy();
   }
 
   async loadSettings() {
@@ -118,6 +122,7 @@ export default class AppleBridgePlugin extends Plugin {
   }
 
   async syncAll() {
+    this.statusBar.setSyncing();
     const results = await Promise.allSettled([
       this.runSync("calendar", () => syncCalendar(this)),
       this.runSync("reminders", () => syncReminders(this)),
@@ -126,8 +131,10 @@ export default class AppleBridgePlugin extends Plugin {
     ]);
     const failed = results.filter((r) => r.status === "rejected").length;
     if (failed === 0) {
+      this.statusBar.setSynced(new Date().toISOString());
       new Notice("Apple Bridge sync complete");
     } else {
+      this.statusBar.setError();
       new Notice(`Apple Bridge sync finished with ${failed} error(s)`);
     }
   }

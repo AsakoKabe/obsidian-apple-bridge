@@ -38,7 +38,28 @@ export class Notice {
 }
 
 export class Vault {}
-export class Plugin {}
+/** Minimal HTMLElement-like object used by the status bar mock. */
+export class MockStatusBarEl {
+  textContent = "";
+  style: Record<string, string> = {};
+  private listeners: Record<string, (() => void)[]> = {};
+
+  addClass(_cls: string) {}
+  setAttribute(_name: string, _value: string) {}
+  addEventListener(event: string, handler: () => void) {
+    (this.listeners[event] ??= []).push(handler);
+  }
+  click() {
+    for (const h of this.listeners["click"] ?? []) h();
+  }
+  remove() {}
+}
+
+export class Plugin {
+  addStatusBarItem(): MockStatusBarEl {
+    return new MockStatusBarEl();
+  }
+}
 export class App {}
 export class PluginSettingTab {}
 export class Setting {
