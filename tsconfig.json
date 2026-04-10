@@ -11,6 +11,7 @@
     "isolatedModules": true,
     "strictNullChecks": true,
     "lib": ["ES6", "DOM"],
+    "skipLibCheck": true,
     "paths": {
       "obsidian": ["./node_modules/obsidian/obsidian.d.ts"]
     }
