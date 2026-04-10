@@ -163,6 +163,11 @@ export function htmlToMarkdown(html: string): string {
   md = md.replace(/<\/?ul[^>]*>/gi, "\n");
   md = md.replace(/<\/?ol[^>]*>/gi, "\n");
 
+  // Code blocks (must come before paragraph/div processing so <pre> is not
+  // accidentally consumed by the /<p[^>]*>/ pattern which also matches <pre>)
+  md = md.replace(/<pre[^>]*>([\s\S]*?)<\/pre>/gi, "```\n$1\n```\n");
+  md = md.replace(/<code[^>]*>([\s\S]*?)<\/code>/gi, "`$1`");
+
   // Line breaks and divs
   md = md.replace(/<br\s*\/?>/gi, "\n");
   md = md.replace(/<\/div>\s*<div[^>]*>/gi, "\n");
@@ -171,10 +176,6 @@ export function htmlToMarkdown(html: string): string {
   md = md.replace(/<\/p>\s*<p[^>]*>/gi, "\n\n");
   md = md.replace(/<p[^>]*>/gi, "");
   md = md.replace(/<\/p>/gi, "\n");
-
-  // Code blocks
-  md = md.replace(/<pre[^>]*>([\s\S]*?)<\/pre>/gi, "```\n$1\n```\n");
-  md = md.replace(/<code[^>]*>([\s\S]*?)<\/code>/gi, "`$1`");
 
   // Blockquotes
   md = md.replace(/<blockquote[^>]*>([\s\S]*?)<\/blockquote>/gi, "> $1\n");

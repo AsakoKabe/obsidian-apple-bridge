@@ -15,5 +15,6 @@
       "obsidian": ["./node_modules/obsidian/obsidian.d.ts"]
     }
   },
-  "include": ["**/*.ts"]
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules", "src/__tests__/**", "src/__mocks__/**"]
 }
