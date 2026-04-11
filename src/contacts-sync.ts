@@ -267,7 +267,7 @@ export async function syncContacts(plugin: AppleBridgePlugin): Promise<number> {
         if (file instanceof TFile) {
           await plugin.app.fileManager.trashFile(file);
         }
-        const { [appleId]: _, ...rest } = state.contacts;
+        const { [appleId]: _removed, ...rest } = state.contacts;
         state.contacts = rest;
       }
     }

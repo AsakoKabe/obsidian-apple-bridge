@@ -327,7 +327,7 @@ export async function syncNotes(plugin: AppleBridgePlugin): Promise<number> {
         if (file instanceof TFile) {
           await plugin.app.fileManager.trashFile(file);
         }
-        const { [appleId]: _, ...rest } = state.notes;
+        const { [appleId]: _removed, ...rest } = state.notes;
         state.notes = rest;
       }
     }
